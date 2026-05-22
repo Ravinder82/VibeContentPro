@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VibeContent Pro</title>
+  <link rel="stylesheet" href="sidepanel.css">
+  <link rel="stylesheet" href="../lib/custom-select.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Header -->
+    <header class="app-header">
+      <div class="logo">
+        <img class="logo-icon" src="../icons/icon48.png" alt="Logo">
+        <div class="logo-text">
+          <span class="logo-title">VIBECONTENT</span>
+          <span class="logo-subtitle">PRO</span>
+        </div>
+      </div>
+      <div class="header-actions">
+        <button id="settingsBtn" class="icon-btn" title="Settings">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <circle cx="12" cy="12" r="3"></circle>
+            <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+          </svg>
+        </button>
+        <button id="vaultBtn" class="icon-btn" title="Content Vault">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+            <polyline points="7 10 12 15 17 10"></polyline>
+            <line x1="12" y1="15" x2="12" y2="3"></line>
+          </svg>
+          <span id="vaultCount" class="badge">0</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- Source Input Section -->
+    <section class="source-section">
+      <div class="section-label">SOURCE</div>
+      <div class="source-tabs">
+        <button class="source-tab active" data-source="current">Current Page</button>
+        <button class="source-tab" data-source="url">URL Link</button>
+        <button class="source-tab" data-source="paste">Paste Text</button>
+      </div>
+
+      <div class="source-content">
+        <div id="currentSource" class="source-panel active">
+          <div id="pageInfo" class="page-info">
+            <div class="page-placeholder">
+              <p>Click "Extract" to read the current webpage</p>
+            </div>
+          </div>
+          <button id="extractBtn" class="primary-btn">Extract Page Content</button>
+        </div>
+
+        <div id="urlSource" class="source-panel">
+          <input type="url" id="urlInput" class="text-input" placeholder="https://example.com/article">
+          <button id="fetchUrlBtn" class="primary-btn">Fetch & Analyze</button>
+        </div>
+
+        <div id="pasteSource" class="source-panel">
+          <textarea id="pasteInput" class="text-area" placeholder="Paste article text, blog post, or any content here..."></textarea>
+          <button id="usePasteBtn" class="primary-btn">Use This Content</button>
+        </div>
+      </div>
+
+      <div id="sourceStats" class="source-stats hidden">
+        <span id="wordCount">0 words</span>
+        <span id="charCount">0 chars</span>
+        <span id="domainName"></span>
+      </div>
+    </section>
+
+    <!-- Configuration Section -->
+    <section class="config-section">
+      <div class="section-label">CONFIGURATION</div>
+
+      <div class="config-grid">
+        <div class="config-item">
+          <label>Persona</label>
+          <select id="personaSelect" class="select-input">
+            <option value="storyteller">The Storyteller</option>
+            <option value="contrarian">The Contrarian</option>
+            <option value="insider">The Insider</option>
+            <option value="minimalist">The Minimalist</option>
+            <option value="hypeArchitect">The Hype Architect</option>
+            <option value="dataDriven">The Data-Driven</option>
+            <option value="relatableRealist">The Relatable Realist</option>
+            <option value="thoughtLeader">The Thought Leader</option>
+          </select>
+        </div>
+
+        <div class="config-item">
+          <label>Platform</label>
+          <select id="platformSelect" class="select-input">
+            <option value="twitter">Article</option>
+            <option value="tiktok">TikTok</option>
+            <option value="youtube">YouTube Shorts</option>
+            <option value="slideshows">Slideshows</option>
+          </select>
+        </div>
+
+        <div class="config-item">
+          <label>Mode</label>
+          <select id="modeSelect" class="select-input">
+            <option value="rephrase">Simple Rephrase</option>
+            <option value="gaps">Gap Hunter</option>
+            <option value="angles">Angle Rotation</option>
+            <option value="viral">Viral Hook</option>
+            <option value="timeTravel">Time-Travel Rewrite</option>
+            <option value="summary">Summary</option>
+            <option value="keyPoints">Key Points</option>
+            <option value="expert">Expert Opinion</option>
+            <option value="explainer">Master Explainer</option>
+          </select>
+        </div>
+      </div>
+
+      <div class="config-advanced">
+        <button id="advancedToggle" class="text-btn">
+          [ + ] Advanced Options
+        </button>
+        <div id="advancedPanel" class="advanced-panel hidden">
+          <div class="config-item full-width">
+            <label>Custom Instructions (Optional)</label>
+            <textarea id="customInstructions" class="text-area small" placeholder="e.g., Focus on the environmental impact. Mention the 2025 study. Keep it under 200 words."></textarea>
+          </div>
+          <div class="config-grid">
+            <div class="config-item">
+              <label>Temperature</label>
+              <input type="range" id="tempSlider" min="0.5" max="1.0" step="0.05" value="0.85" class="range-input">
+              <span id="tempValue">0.85</span>
+            </div>
+            <div class="config-item">
+              <label>Batch Count</label>
+              <select id="batchSelect" class="select-input">
+                <option value="1">1 variation</option>
+                <option value="3">3 variations</option>
+                <option value="5">5 variations</option>
+                <option value="10">10 variations</option>
+              </select>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- Generate Button -->
+    <section class="action-section">
+      <button id="generateBtn" class="generate-btn" disabled>
+        <span class="btn-text">
+          Generate Viral Content
+        </span>
+        <span class="btn-loader hidden">
+          <span class="spinner"></span>
+          Generating...
+        </span>
+      </button>
+      <div id="apiWarning" class="warning-msg hidden">
+        Please configure your API key in Settings first
+      </div>
+    </section>
+
+    <!-- Output Section -->
+    <section class="output-section">
+      <div class="section-label">OUTPUT</div>
+
+      <div id="outputEmpty" class="output-empty">
+        <div class="empty-state">
+          <div class="empty-icon"></div>
+          <h3>Ready to Create</h3>
+          <p>Extract content from a webpage and configure your settings to generate viral social media content.</p>
+        </div>
+      </div>
+
+      <div id="outputContent" class="output-content hidden">
+        <div class="output-header">
+          <div class="output-meta">
+            <span id="outputPersona" class="meta-tag"></span>
+            <span id="outputPlatform" class="meta-tag"></span>
+            <span id="outputMode" class="meta-tag"></span>
+          </div>
+          <div class="output-actions">
+            <button id="copyBtn" class="action-btn" title="Copy to clipboard">
+              Copy
+            </button>
+            <button id="saveBtn" class="action-btn" title="Save to vault">
+              Save
+            </button>
+            <button id="regenerateBtn" class="action-btn" title="Regenerate">
+              Regenerate
+            </button>
+          </div>
+        </div>
+
+        <div class="human-score">
+          <div class="score-label">Human Score</div>
+          <div class="score-bar">
+            <div id="scoreFill" class="score-fill"></div>
+          </div>
+          <div id="scoreValue" class="score-value">--</div>
+        </div>
+
+        <div id="generatedText" class="generated-text" contenteditable="true"></div>
+
+        <div class="output-footer">
+          <span id="outputWordCount">0 words</span>
+          <span id="outputCharCount">0 chars</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- Vault Modal -->
+    <div id="vaultModal" class="modal hidden">
+      <div class="modal-overlay"></div>
+      <div class="modal-content">
+        <div class="modal-header">
+          <h2>Content Vault</h2>
+          <button id="closeVault" class="icon-btn">
+            X
+          </button>
+        </div>
+        <div id="vaultList" class="vault-list">
+          <div class="vault-empty">No saved content yet</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast hidden">
+      <span id="toastMessage"></span>
+    </div>
+  </div>
+
+  <script src="../lib/custom-select.js"></script>
+  <script src="../lib/prompt-engine.js"></script>
+  <script src="sidepanel.js"></script>
+</body>
+</html>

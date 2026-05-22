@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>VibeContent Pro Settings</title>
+  <link rel="stylesheet" href="options.css">
+  <link rel="stylesheet" href="../lib/custom-select.css">
+</head>
+<body>
+  <div class="settings-container">
+    <header class="settings-header">
+      <div class="logo">
+        <img class="logo-icon" src="../icons/icon48.png" alt="Logo">
+        <div class="logo-text">
+          <span class="logo-title">VIBECONTENT</span>
+          <span class="logo-subtitle">PRO</span>
+        </div>
+      </div>
+    </header>
+
+    <main class="settings-content">
+      <!-- API Configuration -->
+      <section class="settings-section">
+        <h2>API Configuration <span class="premium-badge">BYOK</span></h2>
+        <p class="section-desc">Choose your AI provider and enter your API key. Your key is stored locally and never leaves your browser.</p>
+
+        <div class="form-group">
+          <label for="providerSelect">AI Provider</label>
+          <select id="providerSelect" class="select-input">
+            <option value="openai">OpenAI</option>
+            <option value="anthropic">Anthropic</option>
+            <option value="gemini">Google Gemini</option>
+            <option value="openrouter">OpenRouter (Free)</option>
+            <option value="nvidia">NVIDIA NIM</option>
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="modelSelect">AI Model</label>
+          <select id="modelSelect" class="select-input">
+            <!-- Populated dynamically via JS -->
+          </select>
+        </div>
+
+        <div class="form-group">
+          <label for="apiKeyInput">API Key</label>
+          <input type="password" id="apiKeyInput" class="text-input" placeholder="sk-... or your API key">
+          <button id="toggleKeyVisibility" class="toggle-btn">Show</button>
+          <p class="field-hint" id="apiKeyHint">
+            <a href="https://platform.openai.com/api-keys" target="_blank">Get OpenAI key</a>
+          </p>
+        </div>
+
+        <div class="test-connection-container" style="display: flex; align-items: center; gap: 10px; margin-top: 15px;">
+          <button id="testConnectionBtn" class="save-btn" style="padding: 6px 12px; font-size: 13px;">Test Connection</button>
+          <div id="connectionStatusIndicator" style="width: 12px; height: 12px; border-radius: 50%; background-color: #444; transition: background-color 0.3s;"></div>
+          <span id="connectionStatusText" style="font-size: 13px; color: var(--text-light);"></span>
+        </div>
+      </section>
+
+      <!-- Defaults -->
+      <section class="settings-section">
+        <h2>Default Preferences</h2>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="defaultPersona">Default Persona</label>
+            <select id="defaultPersona" class="select-input">
+              <option value="storyteller">The Storyteller</option>
+              <option value="contrarian">The Contrarian</option>
+              <option value="insider">The Insider</option>
+              <option value="minimalist">The Minimalist</option>
+              <option value="hypeArchitect">The Hype Architect</option>
+              <option value="dataDriven">The Data-Driven</option>
+              <option value="relatableRealist">The Relatable Realist</option>
+              <option value="thoughtLeader">The Thought Leader</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="defaultPlatform">Default Platform</label>
+            <select id="defaultPlatform" class="select-input">
+              <option value="twitter">Article</option>
+              <option value="tiktok">TikTok</option>
+              <option value="youtube">YouTube Shorts</option>
+              <option value="slideshows">Slideshows</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-row">
+          <div class="form-group">
+            <label for="defaultMode">Default Mode</label>
+            <select id="defaultMode" class="select-input">
+              <option value="rephrase">Simple Rephrase</option>
+              <option value="gaps">Gap Hunter</option>
+              <option value="angles">Angle Rotation</option>
+              <option value="viral">Viral Hook</option>
+              <option value="timeTravel">Time-Travel Rewrite</option>
+              <option value="summary">Summary</option>
+              <option value="keyPoints">Key Points</option>
+              <option value="expert">Expert Opinion</option>
+              <option value="explainer">Master Explainer</option>
+            </select>
+          </div>
+
+          <div class="form-group">
+            <label for="defaultTemp">Default Temperature</label>
+            <input type="range" id="defaultTemp" min="0.5" max="1.0" step="0.05" value="0.85" class="range-input">
+            <span id="defaultTempValue" class="range-value">0.85</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Behavior -->
+      <section class="settings-section">
+        <h2>Behavior</h2>
+
+        <div class="form-group checkbox-group">
+          <label class="checkbox-label">
+            <input type="checkbox" id="autoSave" checked>
+            <span class="checkmark"></span>
+            <div class="checkbox-text">
+              <strong>Auto-save to vault</strong>
+              <span>Automatically save generated content to your vault</span>
+            </div>
+          </label>
+        </div>
+      </section>
+
+      <!-- Danger Zone -->
+      <section class="settings-section danger">
+        <h2>Data Management</h2>
+
+        <div class="danger-actions">
+          <button id="clearVaultBtn" class="danger-btn">
+            Clear All Vault Content
+          </button>
+          <button id="resetSettingsBtn" class="danger-btn secondary">
+            Reset to Defaults
+          </button>
+        </div>
+      </section>
+    </main>
+
+    <footer class="settings-footer">
+      <button id="saveBtn" class="save-btn">
+        Save Settings
+      </button>
+      <div id="saveStatus" class="save-status"></div>
+    </footer>
+  </div>
+
+  <script src="../lib/custom-select.js"></script>
+  <script src="options.js"></script>
+</body>
+</html>
