@@ -1,14 +1,7 @@
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })
   .catch((error) => console.error('Side panel setup error:', error));
 
-// API Configuration
-const API_CONFIG = {
-  openai: { url: 'https://api.openai.com/v1/chat/completions' },
-  anthropic: { url: 'https://api.anthropic.com/v1/messages' },
-  gemini: { url: 'https://generativelanguage.googleapis.com/v1beta/models/' },
-  openrouter: { url: 'https://openrouter.ai/api/v1/chat/completions' },
-  nvidia: { url: 'https://integrate.api.nvidia.com/v1/chat/completions' }
-};
+// API Configuration dynamically loaded from settings
 
 // Message handler
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
@@ -71,35 +64,55 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 async function handleGeneration(data) {
   const settings = await getSettings();
   const provider = settings.provider || 'openai';
-  const apiKey = settings.apiKey;
-  const model = settings.model || 'gpt-4o-mini';
+  
+  // Support for older settings structure
+  const config = settings.providersConfig ? settings.providersConfig[provider] : { key: settings.apiKey, model: settings.model, url: getFallbackUrl(provider) };
+  
+  const apiKey = config.key;
+  const model = config.model || 'gpt-4o-mini';
+  const url = config.url || getFallbackUrl(provider);
 
   if (!apiKey) {
     throw new Error('API key not configured. Please add your API key in Settings.');
   }
 
-  const config = API_CONFIG[provider];
+  // Security Verification: Ensure the URL uses HTTPS
+  if (!url.startsWith('https://')) {
+    throw new Error('Security Error: Base URL must use HTTPS.');
+  }
+
   let response;
 
   if (provider === 'openai') {
-    response = await fetchOpenAI(config.url, apiKey, model, data);
+    response = await fetchOpenAI(url, apiKey, model, data);
   } else if (provider === 'anthropic') {
-    response = await fetchAnthropic(config.url, apiKey, model, data);
+    response = await fetchAnthropic(url, apiKey, model, data);
   } else if (provider === 'gemini') {
-    response = await fetchGemini(config.url, apiKey, model, data);
+    response = await fetchGemini(url, apiKey, model, data);
   } else if (provider === 'openrouter') {
-    response = await fetchOpenRouter(config.url, apiKey, model, data);
+    response = await fetchOpenRouter(url, apiKey, model, data);
   } else if (provider === 'nvidia') {
-    response = await fetchNvidiaNim(config.url, apiKey, model, data);
+    response = await fetchNvidiaNim(url, apiKey, model, data);
   }
 
   return response;
 }
 
-async function testApiConnection({ provider, model, apiKey }) {
+function getFallbackUrl(provider) {
+  const defaults = {
+    openai: 'https://api.openai.com/v1/chat/completions',
+    anthropic: 'https://api.anthropic.com/v1/messages',
+    gemini: 'https://generativelanguage.googleapis.com/v1beta/models/',
+    openrouter: 'https://openrouter.ai/api/v1/chat/completions',
+    nvidia: 'https://integrate.api.nvidia.com/v1/chat/completions'
+  };
+  return defaults[provider];
+}
+
+async function testApiConnection({ provider, url, model, apiKey }) {
   if (!apiKey) throw new Error('API key missing');
+  if (!url || !url.startsWith('https://')) throw new Error('Secure Base URL missing');
   
-  const config = API_CONFIG[provider];
   const testData = {
     systemPrompt: 'You are a helpful assistant.',
     userPrompt: 'Reply with the word "Connected" and nothing else.'
@@ -107,15 +120,15 @@ async function testApiConnection({ provider, model, apiKey }) {
 
   let response;
   if (provider === 'openai') {
-    response = await fetchOpenAI(config.url, apiKey, model || 'gpt-4o-mini', testData);
+    response = await fetchOpenAI(url, apiKey, model || 'gpt-4o-mini', testData);
   } else if (provider === 'anthropic') {
-    response = await fetchAnthropic(config.url, apiKey, model || 'claude-3-haiku-20240307', testData);
+    response = await fetchAnthropic(url, apiKey, model || 'claude-3-haiku-20240307', testData);
   } else if (provider === 'gemini') {
-    response = await fetchGemini(config.url, apiKey, model || 'gemini-flash-latest', testData);
+    response = await fetchGemini(url, apiKey, model || 'gemini-1.5-flash', testData);
   } else if (provider === 'openrouter') {
-    response = await fetchOpenRouter(config.url, apiKey, model || 'meta-llama/llama-3.1-8b-instruct:free', testData);
+    response = await fetchOpenRouter(url, apiKey, model || 'meta-llama/llama-3.1-8b-instruct', testData);
   } else if (provider === 'nvidia') {
-    response = await fetchNvidiaNim(config.url, apiKey, model || 'meta/llama-3.1-70b-instruct', testData);
+    response = await fetchNvidiaNim(url, apiKey, model || 'meta/llama-3.1-70b-instruct', testData);
   }
 
   if (response && response.content) {
@@ -366,8 +379,13 @@ async function getSettings() {
   const result = await chrome.storage.local.get(['settings']);
   return result.settings || {
     provider: 'openai',
-    model: 'gpt-4o-mini',
-    apiKey: '',
+    providersConfig: {
+      openai: { url: 'https://api.openai.com/v1/chat/completions', key: '', model: 'gpt-4o-mini' },
+      anthropic: { url: 'https://api.anthropic.com/v1/messages', key: '', model: 'claude-3-5-sonnet-latest' },
+      gemini: { url: 'https://generativelanguage.googleapis.com/v1beta/models/', key: '', model: 'gemini-1.5-flash' },
+      openrouter: { url: 'https://openrouter.ai/api/v1/chat/completions', key: '', model: 'meta-llama/llama-3.1-8b-instruct' },
+      nvidia: { url: 'https://integrate.api.nvidia.com/v1/chat/completions', key: '', model: 'meta/llama-3.1-70b-instruct' }
+    },
     defaultPersona: 'storyteller',
     defaultPlatform: 'linkedin',
     defaultMode: 'rephrase',
@@ -426,7 +444,13 @@ chrome.runtime.onInstalled.addListener((details) => {
       vault: [],
       settings: {
         provider: 'openai',
-        apiKey: '',
+        providersConfig: {
+          openai: { url: 'https://api.openai.com/v1/chat/completions', key: '', model: 'gpt-4o-mini' },
+          anthropic: { url: 'https://api.anthropic.com/v1/messages', key: '', model: 'claude-3-5-sonnet-latest' },
+          gemini: { url: 'https://generativelanguage.googleapis.com/v1beta/models/', key: '', model: 'gemini-1.5-flash' },
+          openrouter: { url: 'https://openrouter.ai/api/v1/chat/completions', key: '', model: 'meta-llama/llama-3.1-8b-instruct' },
+          nvidia: { url: 'https://integrate.api.nvidia.com/v1/chat/completions', key: '', model: 'meta/llama-3.1-70b-instruct' }
+        },
         defaultPersona: 'storyteller',
         defaultPlatform: 'linkedin',
         defaultMode: 'rephrase',
