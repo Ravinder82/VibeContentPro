@@ -440,9 +440,10 @@ function buildDefaultSettings() {
       openrouter: { url: FALLBACK_URLS.openrouter, key: '', model: DEFAULT_MODELS.openrouter },
       nvidia:     { url: FALLBACK_URLS.nvidia,     key: '', model: DEFAULT_MODELS.nvidia }
     },
-    defaultPersona: 'storyteller',
+    // Persona/mode are auto-suggested per platform in the side panel.
+    defaultPersona: '',
     defaultPlatform: 'twitter',
-    defaultMode: 'rephrase',
+    defaultMode: '',
     autoSave: true,
     language: 'en',
     temperature: 0.85

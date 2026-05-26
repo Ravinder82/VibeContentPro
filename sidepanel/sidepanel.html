@@ -79,20 +79,6 @@
 
       <div class="config-grid">
         <div class="config-item">
-          <label>Persona</label>
-          <select id="personaSelect" class="select-input">
-            <option value="storyteller">The Storyteller</option>
-            <option value="contrarian">The Contrarian</option>
-            <option value="insider">The Insider</option>
-            <option value="minimalist">The Minimalist</option>
-            <option value="hypeArchitect">The Hype Architect</option>
-            <option value="dataDriven">The Data-Driven</option>
-            <option value="relatableRealist">The Relatable Realist</option>
-            <option value="thoughtLeader">The Thought Leader</option>
-          </select>
-        </div>
-
-        <div class="config-item">
           <label>Platform</label>
           <select id="platformSelect" class="select-input">
             <option value="twitter">Article</option>
@@ -103,18 +89,21 @@
         </div>
 
         <div class="config-item">
-          <label>Mode</label>
-          <select id="modeSelect" class="select-input">
-            <option value="rephrase">Simple Rephrase</option>
-            <option value="gaps">Gap Hunter</option>
-            <option value="angles">Angle Rotation</option>
-            <option value="viral">Viral Hook</option>
-            <option value="timeTravel">Time-Travel Rewrite</option>
-            <option value="summary">Summary</option>
-            <option value="keyPoints">Key Points</option>
-            <option value="expert">Expert Opinion</option>
-            <option value="explainer">Master Explainer</option>
-          </select>
+          <label>
+            Persona
+            <span id="personaAutoBadge" class="auto-badge hidden" title="AI-suggested for this platform">AI-Picked</span>
+          </label>
+          <select id="personaSelect" class="select-input"></select>
+          <p id="personaHint" class="config-hint"></p>
+        </div>
+
+        <div class="config-item">
+          <label>
+            Mode
+            <span id="modeAutoBadge" class="auto-badge hidden" title="AI-suggested for this platform">AI-Picked</span>
+          </label>
+          <select id="modeSelect" class="select-input"></select>
+          <p id="modeHint" class="config-hint"></p>
         </div>
       </div>
 

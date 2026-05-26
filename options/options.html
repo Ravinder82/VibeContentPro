@@ -80,22 +80,9 @@
       <!-- Defaults -->
       <section class="settings-section">
         <h2>Default Preferences</h2>
+        <p class="section-desc">Persona and Mode are auto-suggested by the AI for the platform you pick. Override them anytime from the side panel.</p>
 
         <div class="form-row">
-          <div class="form-group">
-            <label for="defaultPersona">Default Persona</label>
-            <select id="defaultPersona" class="select-input">
-              <option value="storyteller">The Storyteller</option>
-              <option value="contrarian">The Contrarian</option>
-              <option value="insider">The Insider</option>
-              <option value="minimalist">The Minimalist</option>
-              <option value="hypeArchitect">The Hype Architect</option>
-              <option value="dataDriven">The Data-Driven</option>
-              <option value="relatableRealist">The Relatable Realist</option>
-              <option value="thoughtLeader">The Thought Leader</option>
-            </select>
-          </div>
-
           <div class="form-group">
             <label for="defaultPlatform">Default Platform</label>
             <select id="defaultPlatform" class="select-input">
@@ -105,23 +92,6 @@
               <option value="slideshows">Slideshows</option>
             </select>
           </div>
-        </div>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label for="defaultMode">Default Mode</label>
-            <select id="defaultMode" class="select-input">
-              <option value="rephrase">Simple Rephrase</option>
-              <option value="gaps">Gap Hunter</option>
-              <option value="angles">Angle Rotation</option>
-              <option value="viral">Viral Hook</option>
-              <option value="timeTravel">Time-Travel Rewrite</option>
-              <option value="summary">Summary</option>
-              <option value="keyPoints">Key Points</option>
-              <option value="expert">Expert Opinion</option>
-              <option value="explainer">Master Explainer</option>
-            </select>
-          </div>
 
           <div class="form-group">
             <label for="defaultTemp">Default Temperature</label>
@@ -129,6 +99,10 @@
             <span id="defaultTempValue" class="range-value">0.85</span>
           </div>
         </div>
+
+        <!-- Hidden inputs preserve user-level overrides if explicitly set in the side panel -->
+        <input type="hidden" id="defaultPersona" value="">
+        <input type="hidden" id="defaultMode" value="">
       </section>
 
       <!-- Behavior -->
