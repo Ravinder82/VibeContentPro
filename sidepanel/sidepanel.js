@@ -60,10 +60,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     toastMessage: document.getElementById('toastMessage')
   };
 
+  // Tracks whether the user manually changed persona/mode for the current
+  // platform. It must exist before loadSettings() runs.
+  const userOverrides = { persona: false, mode: false };
+
   // Initialize
-  await loadSettings();
-  await updateVaultCount();
   setupEventListeners();
+  try {
+    await loadSettings();
+  } catch (error) {
+    console.error('Settings load error:', error);
+    showToast('Settings could not be loaded. Open Settings and save again.', 'error');
+  }
+
+  await updateVaultCount();
 
   // Try to auto-extract current page
   setTimeout(() => extractCurrentPage(), 500);
@@ -79,13 +89,16 @@ document.addEventListener('DOMContentLoaded', async () => {
     return s.apiKey || '';
   }
 
-  // ─── Platform-driven persona/mode selection ──────────────────────────────
-  // Tracks whether the user manually changed persona/mode for the current
-  // platform — when false, switching platforms re-applies the AI suggestion.
-  const userOverrides = { persona: false, mode: false };
-
   function isValidPlatform(p) {
     return !!(window.PromptEngine && PromptEngine.platforms && PromptEngine.platforms[p]);
+  }
+
+  function syncCustomSelect(select) {
+    if (window.refreshCustomSelect) {
+      window.refreshCustomSelect(select);
+    } else {
+      select.dispatchEvent(new Event('change'));
+    }
   }
 
   function rebuildPersonaDropdown(platformKey, preferred) {
@@ -102,6 +115,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const chosen = list.find(p => p.key === preferred) ? preferred : fallback;
     if (chosen) sel.value = chosen;
     updatePersonaHint();
+    syncCustomSelect(sel);
   }
 
   function rebuildModeDropdown(platformKey, preferred) {
@@ -127,6 +141,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     const chosen = list.find(m => m.key === preferred) ? preferred : fallback;
     if (chosen) sel.value = chosen;
     updateModeHint();
+    syncCustomSelect(sel);
   }
 
   function updatePersonaHint() {
@@ -172,6 +187,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     let platform = settings.defaultPlatform;
     if (!isValidPlatform(platform)) platform = 'twitter';
     els.platformSelect.value = platform;
+    syncCustomSelect(els.platformSelect);
 
     // Persona/mode: if the stored value belongs to this platform's curated set, keep it;
     // otherwise apply the platform's AI-suggested default.
@@ -201,7 +217,10 @@ document.addEventListener('DOMContentLoaded', async () => {
   if (chrome.storage && chrome.storage.onChanged) {
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area === 'local' && changes.settings) {
-        loadSettings();
+        loadSettings().catch(error => {
+          console.error('Settings reload error:', error);
+          showToast('Settings could not be reloaded.', 'error');
+        });
       }
     });
   }
@@ -312,8 +331,13 @@ document.addEventListener('DOMContentLoaded', async () => {
       els.extractBtn.innerHTML = '<span class="spinner"></span> Extracting...';
 
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-      if (!tab) {
+      if (!tab || !tab.id) {
         showToast('No active tab found', 'error');
+        return;
+      }
+
+      if (!/^https?:\/\//i.test(tab.url || '')) {
+        showToast('Open a regular webpage first, then extract content.', 'error');
         return;
       }
 
@@ -324,7 +348,7 @@ document.addEventListener('DOMContentLoaded', async () => {
           files: ['content.js']
         });
       } catch (e) {
-        // Already injected or failed
+        console.warn('Content script injection warning:', e);
       }
 
       // Get content
@@ -346,6 +370,31 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  function waitForTabLoad(tabId, timeoutMs = 10000) {
+    return new Promise(resolve => {
+      let settled = false;
+      const finish = () => {
+        if (settled) return;
+        settled = true;
+        clearTimeout(timer);
+        chrome.tabs.onUpdated.removeListener(listener);
+        resolve();
+      };
+      const listener = (updatedTabId, changeInfo) => {
+        if (updatedTabId === tabId && changeInfo.status === 'complete') {
+          finish();
+        }
+      };
+      const timer = setTimeout(finish, timeoutMs);
+      chrome.tabs.onUpdated.addListener(listener);
+      chrome.tabs.get(tabId, tab => {
+        if (chrome.runtime.lastError || tab?.status === 'complete') {
+          finish();
+        }
+      });
+    });
+  }
+
   async function fetchUrlContent() {
     const url = els.urlInput.value.trim();
     if (!url) {
@@ -353,15 +402,21 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
+    if (!/^https?:\/\//i.test(url)) {
+      showToast('Please enter a full http or https URL', 'error');
+      return;
+    }
+
+    let tab = null;
     try {
       els.fetchUrlBtn.disabled = true;
       els.fetchUrlBtn.textContent = 'Fetching...';
 
       // Try to open in new tab and extract
-      const tab = await chrome.tabs.create({ url, active: false });
+      tab = await chrome.tabs.create({ url, active: false });
 
       // Wait for load
-      await new Promise(resolve => setTimeout(resolve, 3000));
+      await waitForTabLoad(tab.id);
 
       // Inject and extract
       try {
@@ -381,11 +436,16 @@ document.addEventListener('DOMContentLoaded', async () => {
         showToast('Could not fetch content. The site may block extraction.', 'error');
       }
 
-      // Close the tab
-      chrome.tabs.remove(tab.id);
     } catch (error) {
       showToast('Failed to fetch URL: ' + error.message, 'error');
     } finally {
+      if (tab?.id) {
+        try {
+          await chrome.tabs.remove(tab.id);
+        } catch (error) {
+          console.warn('Could not close temporary tab:', error);
+        }
+      }
       els.fetchUrlBtn.disabled = false;
       els.fetchUrlBtn.textContent = `Fetch & Analyze`;
     }
@@ -568,13 +628,27 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   async function updateVaultCount() {
-    const vault = await chrome.runtime.sendMessage({ action: 'getVault' });
-    els.vaultCount.textContent = vault.length;
-    els.vaultCount.style.display = vault.length > 0 ? 'flex' : 'none';
+    try {
+      const vault = await chrome.runtime.sendMessage({ action: 'getVault' });
+      const count = Array.isArray(vault) ? vault.length : 0;
+      els.vaultCount.textContent = count;
+      els.vaultCount.style.display = count > 0 ? 'flex' : 'none';
+    } catch (error) {
+      console.error('Vault count error:', error);
+      els.vaultCount.textContent = '0';
+      els.vaultCount.style.display = 'none';
+    }
   }
 
   async function openVault() {
-    const vault = await chrome.runtime.sendMessage({ action: 'getVault' });
+    let vault = [];
+    try {
+      const response = await chrome.runtime.sendMessage({ action: 'getVault' });
+      vault = Array.isArray(response) ? response : [];
+    } catch (error) {
+      console.error('Vault load error:', error);
+      showToast('Could not load vault', 'error');
+    }
 
     if (vault.length === 0) {
       els.vaultList.innerHTML = '<div class="vault-empty">No saved content yet. Generate and save your first piece!</div>';
