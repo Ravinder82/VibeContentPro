@@ -43,6 +43,14 @@
   transition: all 0.2s ease;
 }
 
+.custom-select-group {
+  padding: 8px 12px 4px;
+  color: #8a8a98;
+  font-size: 0.72rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
 .custom-select-option:hover,
 .custom-select-option.selected {
   background: linear-gradient(135deg, #d4d4d8 0%, #f4f4f5 50%, #d4d4d8 100%);
