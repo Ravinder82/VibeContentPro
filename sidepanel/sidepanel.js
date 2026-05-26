@@ -26,8 +26,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     charCount: document.getElementById('charCount'),
     domainName: document.getElementById('domainName'),
     personaSelect: document.getElementById('personaSelect'),
+    personaAutoBadge: document.getElementById('personaAutoBadge'),
+    personaHint: document.getElementById('personaHint'),
     platformSelect: document.getElementById('platformSelect'),
     modeSelect: document.getElementById('modeSelect'),
+    modeAutoBadge: document.getElementById('modeAutoBadge'),
+    modeHint: document.getElementById('modeHint'),
     advancedToggle: document.getElementById('advancedToggle'),
     advancedPanel: document.getElementById('advancedPanel'),
     customInstructions: document.getElementById('customInstructions'),
@@ -75,26 +79,122 @@ document.addEventListener('DOMContentLoaded', async () => {
     return s.apiKey || '';
   }
 
+  // ─── Platform-driven persona/mode selection ──────────────────────────────
+  // Tracks whether the user manually changed persona/mode for the current
+  // platform — when false, switching platforms re-applies the AI suggestion.
+  const userOverrides = { persona: false, mode: false };
+
+  function isValidPlatform(p) {
+    return !!(window.PromptEngine && PromptEngine.platforms && PromptEngine.platforms[p]);
+  }
+
+  function rebuildPersonaDropdown(platformKey, preferred) {
+    const sel = els.personaSelect;
+    sel.innerHTML = '';
+    const list = PromptEngine.getPersonasForPlatform(platformKey);
+    list.forEach(p => {
+      const opt = document.createElement('option');
+      opt.value = p.key;
+      opt.textContent = p.isRecommended ? `${p.name} — Recommended` : p.name;
+      sel.appendChild(opt);
+    });
+    const fallback = (list.find(p => p.isDefault) || list[0])?.key;
+    const chosen = list.find(p => p.key === preferred) ? preferred : fallback;
+    if (chosen) sel.value = chosen;
+    updatePersonaHint();
+  }
+
+  function rebuildModeDropdown(platformKey, preferred) {
+    const sel = els.modeSelect;
+    sel.innerHTML = '';
+    const list = PromptEngine.getModesForPlatform(platformKey);
+
+    const platformGroup = document.createElement('optgroup');
+    platformGroup.label = `Built for ${PromptEngine.platforms[platformKey].name}`;
+    const universalGroup = document.createElement('optgroup');
+    universalGroup.label = 'All-rounder modes';
+
+    list.forEach(m => {
+      const opt = document.createElement('option');
+      opt.value = m.key;
+      opt.textContent = m.isRecommended ? `${m.name} — Recommended` : m.name;
+      (m.isUniversal ? universalGroup : platformGroup).appendChild(opt);
+    });
+    if (platformGroup.childNodes.length)  sel.appendChild(platformGroup);
+    if (universalGroup.childNodes.length) sel.appendChild(universalGroup);
+
+    const fallback = (list.find(m => m.isDefault) || list[0])?.key;
+    const chosen = list.find(m => m.key === preferred) ? preferred : fallback;
+    if (chosen) sel.value = chosen;
+    updateModeHint();
+  }
+
+  function updatePersonaHint() {
+    const key = els.personaSelect.value;
+    const persona = PromptEngine.personas[key];
+    els.personaHint.textContent = persona?.description || '';
+  }
+  function updateModeHint() {
+    const key = els.modeSelect.value;
+    const mode = PromptEngine.modes[key];
+    els.modeHint.textContent = mode?.description || '';
+  }
+
+  function applyAutoSuggestion(platformKey, { keepUserChoice = false } = {}) {
+    const platform = PromptEngine.platforms[platformKey];
+    if (!platform) return;
+
+    const preferredPersona = keepUserChoice && userOverrides.persona
+      ? els.personaSelect.value
+      : platform.defaultPersona;
+    const preferredMode = keepUserChoice && userOverrides.mode
+      ? els.modeSelect.value
+      : platform.defaultMode;
+
+    rebuildPersonaDropdown(platformKey, preferredPersona);
+    rebuildModeDropdown(platformKey, preferredMode);
+
+    // Badge: visible when the current value matches the platform's recommendation
+    els.personaAutoBadge.classList.toggle('hidden', els.personaSelect.value !== platform.defaultPersona);
+    els.modeAutoBadge.classList.toggle('hidden', els.modeSelect.value !== platform.defaultMode);
+  }
+
   async function loadSettings() {
     const response = await chrome.runtime.sendMessage({ action: 'getSettings' });
     settings = response || {};
 
-    // Apply settings to UI
-    if (settings.defaultPersona) els.personaSelect.value = settings.defaultPersona;
-    if (settings.defaultPlatform) els.platformSelect.value = settings.defaultPlatform;
-    if (settings.defaultMode) els.modeSelect.value = settings.defaultMode;
     if (settings.temperature) {
       els.tempSlider.value = settings.temperature;
       els.tempValue.textContent = settings.temperature;
     }
 
-    // Check API key from the active provider (new format) with legacy fallback
+    // Resolve platform: settings → legacy fallback → first valid platform
+    let platform = settings.defaultPlatform;
+    if (!isValidPlatform(platform)) platform = 'twitter';
+    els.platformSelect.value = platform;
+
+    // Persona/mode: if the stored value belongs to this platform's curated set, keep it;
+    // otherwise apply the platform's AI-suggested default.
+    const platformObj = PromptEngine.platforms[platform];
+    const allowedPersonas = new Set(platformObj.personas);
+    const allowedModes    = new Set(platformObj.modes);
+
+    const personaCandidate = allowedPersonas.has(settings.defaultPersona) ? settings.defaultPersona : platformObj.defaultPersona;
+    const modeCandidate    = allowedModes.has(settings.defaultMode)       ? settings.defaultMode    : platformObj.defaultMode;
+
+    userOverrides.persona = personaCandidate !== platformObj.defaultPersona;
+    userOverrides.mode    = modeCandidate    !== platformObj.defaultMode;
+
+    rebuildPersonaDropdown(platform, personaCandidate);
+    rebuildModeDropdown(platform, modeCandidate);
+
+    els.personaAutoBadge.classList.toggle('hidden', userOverrides.persona);
+    els.modeAutoBadge.classList.toggle('hidden', userOverrides.mode);
+
+    // API key warning
     const activeKey = getActiveApiKey(settings);
-    if (activeKey) {
-      els.apiWarning.classList.add('hidden');
-    } else {
-      els.apiWarning.classList.remove('hidden');
-    }
+    if (activeKey) els.apiWarning.classList.add('hidden');
+    else els.apiWarning.classList.remove('hidden');
   }
 
   // Re-check settings whenever they change in another tab (options page)
@@ -153,6 +253,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Temperature slider
     els.tempSlider.addEventListener('input', (e) => {
       els.tempValue.textContent = e.target.value;
+    });
+
+    // Platform change → reset overrides (unless user already overrode) and re-suggest
+    els.platformSelect.addEventListener('change', () => {
+      userOverrides.persona = false;
+      userOverrides.mode = false;
+      applyAutoSuggestion(els.platformSelect.value);
+    });
+
+    // Persona / Mode manual changes → mark as user override and hide the badge
+    els.personaSelect.addEventListener('change', () => {
+      const platform = PromptEngine.platforms[els.platformSelect.value];
+      userOverrides.persona = els.personaSelect.value !== platform.defaultPersona;
+      els.personaAutoBadge.classList.toggle('hidden', userOverrides.persona);
+      updatePersonaHint();
+    });
+    els.modeSelect.addEventListener('change', () => {
+      const platform = PromptEngine.platforms[els.platformSelect.value];
+      userOverrides.mode = els.modeSelect.value !== platform.defaultMode;
+      els.modeAutoBadge.classList.toggle('hidden', userOverrides.mode);
+      updateModeHint();
     });
 
     // Generate

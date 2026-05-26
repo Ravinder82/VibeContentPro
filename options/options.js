@@ -108,9 +108,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         openrouter: { url: DEFAULT_URLS.openrouter, key: '', model: 'google/gemini-2.0-flash-exp:free' },
         nvidia:     { url: DEFAULT_URLS.nvidia,     key: '', model: 'meta/llama-3.3-70b-instruct' }
       },
-      defaultPersona: 'storyteller',
+      // Persona/mode are auto-suggested per platform in the side panel;
+      // these fields exist only to remember a user-level override if set.
+      defaultPersona: '',
       defaultPlatform: 'twitter',
-      defaultMode: 'rephrase',
+      defaultMode: '',
       autoSave: true,
       language: 'en',
       temperature: 0.85
@@ -460,9 +462,9 @@ document.addEventListener('DOMContentLoaded', async () => {
   function applySettingsToUI() {
     els.providerSelect.value  = currentSettings.provider || 'gemini';
     updateUIForProvider(els.providerSelect.value);
-    els.defaultPersona.value  = currentSettings.defaultPersona  || 'storyteller';
+    els.defaultPersona.value  = currentSettings.defaultPersona  || '';
     els.defaultPlatform.value = currentSettings.defaultPlatform || 'twitter';
-    els.defaultMode.value     = currentSettings.defaultMode     || 'rephrase';
+    els.defaultMode.value     = currentSettings.defaultMode     || '';
     els.defaultTemp.value     = currentSettings.temperature     || 0.85;
     els.defaultTempValue.textContent = currentSettings.temperature || 0.85;
     els.autoSave.checked      = currentSettings.autoSave !== false;

@@ -981,3 +981,28 @@ body {
 ::-webkit-scrollbar-thumb:hover {
   background: var(--text-muted);
 }
+
+/* ── Config: AI-suggested badge + hint line ─────────────────────────────── */
+.auto-badge {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 2px 6px;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
+  color: #000;
+  background: var(--success);
+  border-radius: 999px;
+  vertical-align: middle;
+  line-height: 1.2;
+}
+.auto-badge.hidden { display: none; }
+
+.config-hint {
+  margin-top: 4px;
+  font-size: 11px;
+  line-height: 1.35;
+  color: var(--text-muted);
+  min-height: 14px;
+}
