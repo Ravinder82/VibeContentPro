@@ -65,9 +65,19 @@ document.addEventListener('DOMContentLoaded', async () => {
   setTimeout(() => extractCurrentPage(), 500);
 
   // Functions
+  function getActiveApiKey(s) {
+    if (!s) return '';
+    // New multi-provider format
+    const provider = s.provider;
+    const key = s.providersConfig?.[provider]?.key;
+    if (key) return key;
+    // Legacy single-key format (back-compat)
+    return s.apiKey || '';
+  }
+
   async function loadSettings() {
     const response = await chrome.runtime.sendMessage({ action: 'getSettings' });
-    settings = response;
+    settings = response || {};
 
     // Apply settings to UI
     if (settings.defaultPersona) els.personaSelect.value = settings.defaultPersona;
@@ -78,10 +88,22 @@ document.addEventListener('DOMContentLoaded', async () => {
       els.tempValue.textContent = settings.temperature;
     }
 
-    // Check API key
-    if (!settings.apiKey) {
+    // Check API key from the active provider (new format) with legacy fallback
+    const activeKey = getActiveApiKey(settings);
+    if (activeKey) {
+      els.apiWarning.classList.add('hidden');
+    } else {
       els.apiWarning.classList.remove('hidden');
     }
+  }
+
+  // Re-check settings whenever they change in another tab (options page)
+  if (chrome.storage && chrome.storage.onChanged) {
+    chrome.storage.onChanged.addListener((changes, area) => {
+      if (area === 'local' && changes.settings) {
+        loadSettings();
+      }
+    });
   }
 
   function setupEventListeners() {
@@ -275,7 +297,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    if (!settings.apiKey) {
+    if (!getActiveApiKey(settings)) {
       els.apiWarning.classList.remove('hidden');
       showToast('Please configure API key in Settings', 'error');
       return;

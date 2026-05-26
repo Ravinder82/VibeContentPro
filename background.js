@@ -1,20 +1,42 @@
+// VibeContent Pro - Service Worker
+// Version 1.1.0
+
 chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true })
   .catch((error) => console.error('Side panel setup error:', error));
 
-// API Configuration dynamically loaded from settings
+// ─── Provider Defaults ──────────────────────────────────────────────────────
+const FALLBACK_URLS = {
+  openai:     'https://api.openai.com/v1/chat/completions',
+  anthropic:  'https://api.anthropic.com/v1/messages',
+  gemini:     'https://generativelanguage.googleapis.com/v1beta/models/',
+  openrouter: 'https://openrouter.ai/api/v1/chat/completions',
+  nvidia:     'https://integrate.api.nvidia.com/v1/chat/completions'
+};
 
-// Message handler
+const DEFAULT_MODELS = {
+  openai:     'gpt-4o-mini',
+  anthropic:  'claude-haiku-4-5',
+  gemini:     'gemini-2.5-flash',
+  openrouter: 'google/gemini-2.0-flash-exp:free',
+  nvidia:     'meta/llama-3.3-70b-instruct'
+};
+
+// Used as Referer for OpenRouter; must be consistent across the extension.
+const OPENROUTER_REFERER = 'https://vibecontent.pro';
+const OPENROUTER_APP_TITLE = 'VibeContent Pro';
+
+// ─── Message Router ─────────────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.action === 'generateContent') {
     handleGeneration(request.data).then(sendResponse).catch(error => {
       sendResponse({ error: error.message });
     });
-    return true; // Async response
+    return true;
   }
 
   if (request.action === 'testApiConnection') {
     testApiConnection(request.data).then(sendResponse).catch(error => {
-      sendResponse({ error: error.message });
+      sendResponse({ success: false, error: error.message });
     });
     return true;
   }
@@ -61,83 +83,99 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   }
 });
 
+// ─── Generation Core ───────────────────────────────────────────────────────
 async function handleGeneration(data) {
   const settings = await getSettings();
   const provider = settings.provider || 'openai';
-  
-  // Support for older settings structure
-  const config = settings.providersConfig ? settings.providersConfig[provider] : { key: settings.apiKey, model: settings.model, url: getFallbackUrl(provider) };
-  
+
+  // Support legacy single-key format
+  const config = settings.providersConfig
+    ? (settings.providersConfig[provider] || {})
+    : { key: settings.apiKey, model: settings.model, url: getFallbackUrl(provider) };
+
   const apiKey = config.key;
-  const model = config.model || 'gpt-4o-mini';
-  const url = config.url || getFallbackUrl(provider);
+  const model  = config.model || DEFAULT_MODELS[provider] || 'gpt-4o-mini';
+  const url    = config.url   || getFallbackUrl(provider);
+  const temperature = typeof settings.temperature === 'number' ? settings.temperature : 0.85;
 
   if (!apiKey) {
-    throw new Error('API key not configured. Please add your API key in Settings.');
+    throw new Error('API key not configured. Open Settings, paste your key, then click Save.');
   }
-
-  // Security Verification: Ensure the URL uses HTTPS
-  if (!url.startsWith('https://')) {
+  if (!url || !url.startsWith('https://')) {
     throw new Error('Security Error: Base URL must use HTTPS.');
   }
 
-  let response;
-
-  if (provider === 'openai') {
-    response = await fetchOpenAI(url, apiKey, model, data);
-  } else if (provider === 'anthropic') {
-    response = await fetchAnthropic(url, apiKey, model, data);
-  } else if (provider === 'gemini') {
-    response = await fetchGemini(url, apiKey, model, data);
-  } else if (provider === 'openrouter') {
-    response = await fetchOpenRouter(url, apiKey, model, data);
-  } else if (provider === 'nvidia') {
-    response = await fetchNvidiaNim(url, apiKey, model, data);
-  }
-
-  return response;
+  return callProvider(provider, { url, apiKey, model, data, temperature });
 }
 
 function getFallbackUrl(provider) {
-  const defaults = {
-    openai: 'https://api.openai.com/v1/chat/completions',
-    anthropic: 'https://api.anthropic.com/v1/messages',
-    gemini: 'https://generativelanguage.googleapis.com/v1beta/models/',
-    openrouter: 'https://openrouter.ai/api/v1/chat/completions',
-    nvidia: 'https://integrate.api.nvidia.com/v1/chat/completions'
-  };
-  return defaults[provider];
+  return FALLBACK_URLS[provider];
 }
 
+async function callProvider(provider, opts) {
+  switch (provider) {
+    case 'openai':     return fetchOpenAI(opts);
+    case 'anthropic':  return fetchAnthropic(opts);
+    case 'gemini':     return fetchGemini(opts);
+    case 'openrouter': return fetchOpenRouter(opts);
+    case 'nvidia':     return fetchNvidiaNim(opts);
+    default: throw new Error(`Unsupported provider: ${provider}`);
+  }
+}
+
+// ─── Connection Test ────────────────────────────────────────────────────────
 async function testApiConnection({ provider, url, model, apiKey }) {
   if (!apiKey) throw new Error('API key missing');
-  if (!url || !url.startsWith('https://')) throw new Error('Secure Base URL missing');
-  
-  const testData = {
+  if (!url || !url.startsWith('https://')) throw new Error('Secure Base URL missing (https:// required)');
+
+  const data = {
     systemPrompt: 'You are a helpful assistant.',
     userPrompt: 'Reply with the word "Connected" and nothing else.'
   };
 
-  let response;
-  if (provider === 'openai') {
-    response = await fetchOpenAI(url, apiKey, model || 'gpt-4o-mini', testData);
-  } else if (provider === 'anthropic') {
-    response = await fetchAnthropic(url, apiKey, model || 'claude-3-haiku-20240307', testData);
-  } else if (provider === 'gemini') {
-    response = await fetchGemini(url, apiKey, model || 'gemini-1.5-flash', testData);
-  } else if (provider === 'openrouter') {
-    response = await fetchOpenRouter(url, apiKey, model || 'meta-llama/llama-3.1-8b-instruct', testData);
-  } else if (provider === 'nvidia') {
-    response = await fetchNvidiaNim(url, apiKey, model || 'meta/llama-3.1-70b-instruct', testData);
-  }
+  const effectiveModel = model || DEFAULT_MODELS[provider];
+  const response = await callProvider(provider, {
+    url,
+    apiKey,
+    model: effectiveModel,
+    data,
+    temperature: 0.2
+  });
 
-  if (response && response.content) {
-    return { success: true };
+  if (response && typeof response.content === 'string' && response.content.length > 0) {
+    return { success: true, sample: response.content.slice(0, 80) };
   }
-  throw new Error('Invalid response from API');
+  throw new Error('Invalid or empty response from API');
 }
 
-async function fetchOpenAI(url, apiKey, model, data) {
+// ─── Error Helpers ──────────────────────────────────────────────────────────
+async function parseErrorBody(response) {
+  const text = await response.text().catch(() => '');
+  if (!text) return null;
+  try {
+    return JSON.parse(text);
+  } catch {
+    return { rawText: text };
+  }
+}
+
+function extractErrorMessage(parsed, fallback) {
+  if (!parsed) return fallback;
+  // OpenAI / OpenRouter / NVIDIA shape
+  if (parsed.error?.message) return parsed.error.message;
+  // Anthropic shape
+  if (parsed.error?.type && parsed.error?.message) return `${parsed.error.type}: ${parsed.error.message}`;
+  // Gemini shape
+  if (parsed.error?.status && parsed.error?.message) return `${parsed.error.status}: ${parsed.error.message}`;
+  // NVIDIA detail
+  if (parsed.detail) return typeof parsed.detail === 'string' ? parsed.detail : JSON.stringify(parsed.detail);
+  // Raw text body
+  if (parsed.rawText) return parsed.rawText.slice(0, 300);
+  return fallback;
+}
+
+// ─── Provider Adapters ─────────────────────────────────────────────────────
+async function fetchOpenAI({ url, apiKey, model, data, temperature }) {
   const response = await fetch(url, {
     method: 'POST',
     headers: {
@@ -145,12 +183,12 @@ async function fetchOpenAI(url, apiKey, model, data) {
       'Authorization': `Bearer ${apiKey}`
     },
     body: JSON.stringify({
-      model: model,
+      model,
       messages: [
         { role: 'system', content: data.systemPrompt },
-        { role: 'user', content: data.userPrompt }
+        { role: 'user',   content: data.userPrompt }
       ],
-      temperature: 0.85,
+      temperature,
       max_tokens: 8192,
       top_p: 0.92,
       frequency_penalty: 0.3,
@@ -159,27 +197,30 @@ async function fetchOpenAI(url, apiKey, model, data) {
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error?.message || 'OpenAI API error');
+    const parsed = await parseErrorBody(response);
+    throw new Error(extractErrorMessage(parsed, `OpenAI API error (${response.status})`));
   }
 
   const result = await response.json();
-  return { content: result.choices[0].message.content };
+  const content = result?.choices?.[0]?.message?.content;
+  if (!content) throw new Error('OpenAI returned no content');
+  return { content };
 }
 
-async function fetchAnthropic(url, apiKey, model, data) {
+async function fetchAnthropic({ url, apiKey, model, data, temperature }) {
   const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'x-api-key': apiKey,
       'anthropic-version': '2023-06-01',
-      'anthropic-cors-hack': 'true' // Sometimes needed for extensions
+      // Required for direct browser/extension calls; without this, Anthropic blocks CORS.
+      'anthropic-dangerous-direct-browser-access': 'true'
     },
     body: JSON.stringify({
-      model: model,
+      model,
       max_tokens: 8192,
-      temperature: 0.85,
+      temperature,
       system: data.systemPrompt,
       messages: [
         { role: 'user', content: data.userPrompt }
@@ -188,27 +229,31 @@ async function fetchAnthropic(url, apiKey, model, data) {
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error?.message || 'Anthropic API error');
+    const parsed = await parseErrorBody(response);
+    throw new Error(extractErrorMessage(parsed, `Anthropic API error (${response.status})`));
   }
 
   const result = await response.json();
-  return { content: result.content[0].text };
+  const block = result?.content?.find(b => b.type === 'text') || result?.content?.[0];
+  const content = block?.text;
+  if (!content) throw new Error('Anthropic returned no text content');
+  return { content };
 }
 
-async function fetchGemini(baseUrl, apiKey, model, data) {
-  const url = `${baseUrl}${model}:generateContent?key=${apiKey}`;
-  const response = await fetch(url, {
+async function fetchGemini({ url: baseUrl, apiKey, model, data, temperature }) {
+  // Ensure baseUrl ends with the trailing slash before the model id
+  const root = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
+  const endpoint = `${root}${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+
+  const response = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       contents: [{
-        parts: [{
-          text: `${data.systemPrompt}\n\n${data.userPrompt}`
-        }]
+        parts: [{ text: `${data.systemPrompt}\n\n${data.userPrompt}` }]
       }],
       generationConfig: {
-        temperature: 0.85,
+        temperature,
         maxOutputTokens: 8192,
         topP: 0.92
       }
@@ -216,78 +261,90 @@ async function fetchGemini(baseUrl, apiKey, model, data) {
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error?.message || 'Gemini API error');
+    const parsed = await parseErrorBody(response);
+    throw new Error(extractErrorMessage(parsed, `Gemini API error (${response.status})`));
   }
 
   const result = await response.json();
-  if (!result.candidates || !result.candidates[0]?.content?.parts) {
-     throw new Error('Unexpected Gemini API response format');
+  const parts = result?.candidates?.[0]?.content?.parts;
+  if (!parts || !parts.length) {
+    // Most common case: blocked by safety filter
+    const reason = result?.candidates?.[0]?.finishReason || result?.promptFeedback?.blockReason;
+    throw new Error(reason ? `Gemini blocked response: ${reason}` : 'Unexpected Gemini response format');
   }
-  return { content: result.candidates[0].content.parts[0].text };
+  const content = parts.map(p => p.text || '').join('').trim();
+  if (!content) throw new Error('Gemini returned empty content');
+  return { content };
 }
 
-async function fetchOpenRouter(url, apiKey, model, data) {
+async function fetchOpenRouter({ url, apiKey, model, data, temperature }) {
   const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
       'Authorization': `Bearer ${apiKey}`,
-      'HTTP-Referer': 'https://vibecontent-pro.local', // Required by OpenRouter
-      'X-Title': 'VibeContent Pro' // Required by OpenRouter
+      'HTTP-Referer': OPENROUTER_REFERER,
+      'X-Title': OPENROUTER_APP_TITLE
     },
     body: JSON.stringify({
-      model: model,
+      model,
       messages: [
         { role: 'system', content: data.systemPrompt },
-        { role: 'user', content: data.userPrompt }
+        { role: 'user',   content: data.userPrompt }
       ],
-      temperature: 0.85,
+      temperature,
       max_tokens: 8192
     })
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.error?.message || 'OpenRouter API error');
+    const parsed = await parseErrorBody(response);
+    throw new Error(extractErrorMessage(parsed, `OpenRouter API error (${response.status})`));
   }
 
   const result = await response.json();
-  return { content: result.choices[0].message.content };
+  const content = result?.choices?.[0]?.message?.content;
+  if (!content) throw new Error('OpenRouter returned no content');
+  return { content };
 }
 
-async function fetchNvidiaNim(url, apiKey, model, data) {
+async function fetchNvidiaNim({ url, apiKey, model, data, temperature }) {
   const response = await fetch(url, {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': `Bearer ${apiKey}`
+      'Authorization': `Bearer ${apiKey}`,
+      'Accept': 'application/json'
     },
     body: JSON.stringify({
-      model: model,
+      model,
       messages: [
         { role: 'system', content: data.systemPrompt },
-        { role: 'user', content: data.userPrompt }
+        { role: 'user',   content: data.userPrompt }
       ],
-      temperature: 0.85,
+      temperature,
       max_tokens: 8192,
-      top_p: 1
+      top_p: 1,
+      stream: false
     })
   });
 
   if (!response.ok) {
-    const error = await response.json();
-    throw new Error(error.detail || error.error?.message || 'NVIDIA NIM API error');
+    const parsed = await parseErrorBody(response);
+    throw new Error(extractErrorMessage(parsed, `NVIDIA NIM API error (${response.status})`));
   }
 
   const result = await response.json();
-  return { content: result.choices[0].message.content };
+  const content = result?.choices?.[0]?.message?.content;
+  if (!content) throw new Error('NVIDIA NIM returned no content');
+  return { content };
 }
 
+// ─── Page Extraction ───────────────────────────────────────────────────────
 async function handlePageExtraction(tabId) {
   try {
     const results = await chrome.scripting.executeScript({
-      target: { tabId: tabId },
+      target: { tabId },
       func: extractPageData
     });
     return results[0].result;
@@ -297,13 +354,11 @@ async function handlePageExtraction(tabId) {
 }
 
 function extractPageData() {
-  // Advanced content extraction
   const getMeta = (name) => {
     const el = document.querySelector(`meta[name="${name}"], meta[property="og:${name}"], meta[property="twitter:${name}"]`);
     return el ? el.getAttribute('content') : '';
   };
 
-  // Try to find main content area
   const contentSelectors = [
     'article', '[role="main"]', '.post-content', '.entry-content',
     '.article-content', '.content', 'main', '#content', '.post',
@@ -319,12 +374,10 @@ function extractPageData() {
     }
   }
 
-  // Fallback to body with noise removal
   if (!contentElement) contentElement = document.body;
 
-  // Clean text
   const clone = contentElement.cloneNode(true);
-  const removeSelectors = ['nav', 'header', 'footer', 'aside', '.sidebar', 
+  const removeSelectors = ['nav', 'header', 'footer', 'aside', '.sidebar',
     '.comments', '.advertisement', '.ad', 'script', 'style', 'noscript',
     '.social-share', '.related-posts', 'iframe', 'form'];
 
@@ -336,12 +389,12 @@ function extractPageData() {
     .replace(/\s+/g, ' ')
     .replace(/\n\s*\n/g, '\n')
     .trim()
-    .substring(0, 15000); // Limit length
+    .substring(0, 15000);
 
   return {
     title: document.title,
     url: window.location.href,
-    description: getMeta('description') || getMeta('description'),
+    description: getMeta('description'),
     author: getMeta('author') || getMeta('site_name'),
     publishDate: getMeta('published_time') || getMeta('pubdate'),
     content: text,
@@ -350,6 +403,7 @@ function extractPageData() {
   };
 }
 
+// ─── Vault ──────────────────────────────────────────────────────────────────
 async function saveToVault(data) {
   const result = await chrome.storage.local.get(['vault']);
   const vault = result.vault || [];
@@ -359,7 +413,7 @@ async function saveToVault(data) {
     createdAt: new Date().toISOString()
   };
   vault.unshift(item);
-  await chrome.storage.local.set({ vault: vault.slice(0, 500) }); // Max 500 items
+  await chrome.storage.local.set({ vault: vault.slice(0, 500) });
   return { success: true, item };
 }
 
@@ -375,24 +429,30 @@ async function deleteFromVault(id) {
   return { success: true };
 }
 
-async function getSettings() {
-  const result = await chrome.storage.local.get(['settings']);
-  return result.settings || {
-    provider: 'openai',
+// ─── Settings ───────────────────────────────────────────────────────────────
+function buildDefaultSettings() {
+  return {
+    provider: 'gemini',
     providersConfig: {
-      openai: { url: 'https://api.openai.com/v1/chat/completions', key: '', model: 'gpt-4o-mini' },
-      anthropic: { url: 'https://api.anthropic.com/v1/messages', key: '', model: 'claude-3-5-sonnet-latest' },
-      gemini: { url: 'https://generativelanguage.googleapis.com/v1beta/models/', key: '', model: 'gemini-1.5-flash' },
-      openrouter: { url: 'https://openrouter.ai/api/v1/chat/completions', key: '', model: 'meta-llama/llama-3.1-8b-instruct' },
-      nvidia: { url: 'https://integrate.api.nvidia.com/v1/chat/completions', key: '', model: 'meta/llama-3.1-70b-instruct' }
+      openai:     { url: FALLBACK_URLS.openai,     key: '', model: DEFAULT_MODELS.openai },
+      anthropic:  { url: FALLBACK_URLS.anthropic,  key: '', model: DEFAULT_MODELS.anthropic },
+      gemini:     { url: FALLBACK_URLS.gemini,     key: '', model: DEFAULT_MODELS.gemini },
+      openrouter: { url: FALLBACK_URLS.openrouter, key: '', model: DEFAULT_MODELS.openrouter },
+      nvidia:     { url: FALLBACK_URLS.nvidia,     key: '', model: DEFAULT_MODELS.nvidia }
     },
     defaultPersona: 'storyteller',
-    defaultPlatform: 'linkedin',
+    defaultPlatform: 'twitter',
     defaultMode: 'rephrase',
     autoSave: true,
     language: 'en',
     temperature: 0.85
   };
+}
+
+async function getSettings() {
+  const result = await chrome.storage.local.get(['settings']);
+  if (result.settings) return result.settings;
+  return buildDefaultSettings();
 }
 
 async function saveSettings(settings) {
@@ -401,8 +461,6 @@ async function saveSettings(settings) {
 }
 
 async function fetchUrlContent(url) {
-  // Note: Direct fetch from service worker may have CORS issues
-  // This is a best-effort approach
   try {
     const response = await fetch(url, {
       headers: {
@@ -410,17 +468,14 @@ async function fetchUrlContent(url) {
       }
     });
     const html = await response.text();
-
-    // Basic HTML parsing
     const parser = new DOMParser();
     const doc = parser.parseFromString(html, 'text/html');
 
     const title = doc.querySelector('title')?.textContent || '';
     const description = doc.querySelector('meta[name="description"]')?.getAttribute('content') || '';
 
-    // Extract text from body
-    const body = doc.body;
-    const text = body.innerText
+    // DOMParser-created documents have no layout; use textContent, not innerText
+    const text = (doc.body?.textContent || '')
       .replace(/\s+/g, ' ')
       .trim()
       .substring(0, 15000);
@@ -433,31 +488,16 @@ async function fetchUrlContent(url) {
       wordCount: text.split(/\s+/).length
     };
   } catch (error) {
-    throw new Error('Cannot fetch URL directly due to CORS. Please open the page in a tab and use "Current Page" mode.');
+    throw new Error('Cannot fetch URL directly due to CORS. Open the page in a tab and use "Current Page" mode.');
   }
 }
 
-// Installation handler
-chrome.runtime.onInstalled.addListener((details) => {
+// ─── Install Hook ──────────────────────────────────────────────────────────
+chrome.runtime.onInstalled.addListener(async (details) => {
   if (details.reason === 'install') {
-    chrome.storage.local.set({ 
+    await chrome.storage.local.set({
       vault: [],
-      settings: {
-        provider: 'openai',
-        providersConfig: {
-          openai: { url: 'https://api.openai.com/v1/chat/completions', key: '', model: 'gpt-4o-mini' },
-          anthropic: { url: 'https://api.anthropic.com/v1/messages', key: '', model: 'claude-3-5-sonnet-latest' },
-          gemini: { url: 'https://generativelanguage.googleapis.com/v1beta/models/', key: '', model: 'gemini-1.5-flash' },
-          openrouter: { url: 'https://openrouter.ai/api/v1/chat/completions', key: '', model: 'meta-llama/llama-3.1-8b-instruct' },
-          nvidia: { url: 'https://integrate.api.nvidia.com/v1/chat/completions', key: '', model: 'meta/llama-3.1-70b-instruct' }
-        },
-        defaultPersona: 'storyteller',
-        defaultPlatform: 'linkedin',
-        defaultMode: 'rephrase',
-        autoSave: true,
-        language: 'en',
-        temperature: 0.85
-      }
+      settings: buildDefaultSettings()
     });
   }
 });
