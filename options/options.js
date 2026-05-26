@@ -48,170 +48,181 @@ document.addEventListener('DOMContentLoaded', async () => {
     nvidia:     '<a href="https://build.nvidia.com/" target="_blank">Get NVIDIA NIM key (Free Trial) →</a>'
   };
 
-  // ─── Built-in Fallback Model Lists (up-to-date May 2026) ──────────────────
-  // These are shown instantly on first load. The "Refresh" button fetches live from APIs.
+  // ─── Built-in Fallback Model Lists ────────────────────────────────────────
+  // Conservative, real, currently-shipping IDs. The Refresh button overrides
+  // these with the live list straight from the provider's /models endpoint.
   const FALLBACK_MODELS = {
     openai: [
-      { id: 'gpt-5.5',                     name: 'GPT-5.5 (Flagship)' },
-      { id: 'gpt-5.4',                      name: 'GPT-5.4' },
-      { id: 'gpt-5.4-mini',                 name: 'GPT-5.4 Mini' },
-      { id: 'o3-pro',                        name: 'o3 Pro (Deep Reasoning)' },
-      { id: 'o3',                            name: 'o3 (Reasoning)' },
-      { id: 'o3-mini',                       name: 'o3 Mini (Fast Reasoning)' },
-      { id: 'gpt-4-turbo',                   name: 'GPT-4 Turbo (Legacy)' },
-      { id: 'gpt-3.5-turbo',                 name: 'GPT-3.5 Turbo (Legacy)' },
+      { id: 'gpt-4o',              name: 'GPT-4o' },
+      { id: 'gpt-4o-mini',         name: 'GPT-4o Mini (Recommended)' },
+      { id: 'gpt-4-turbo',         name: 'GPT-4 Turbo' },
+      { id: 'gpt-3.5-turbo',       name: 'GPT-3.5 Turbo' },
+      { id: 'o1-mini',             name: 'o1 Mini (Reasoning)' },
+      { id: 'o3-mini',             name: 'o3 Mini (Reasoning)' }
     ],
     anthropic: [
-      { id: 'claude-opus-4-7',               name: 'Claude Opus 4.7 (Best)' },
-      { id: 'claude-sonnet-4-6',             name: 'Claude Sonnet 4.6 (Balanced)' },
-      { id: 'claude-haiku-4-5',              name: 'Claude Haiku 4.5 (Fast)' },
-      { id: 'claude-3-7-sonnet-20250219',    name: 'Claude 3.7 Sonnet (Hybrid Thinking)' },
-      { id: 'claude-3-5-sonnet-latest',      name: 'Claude 3.5 Sonnet (Older)' },
-      { id: 'claude-3-5-haiku-latest',       name: 'Claude 3.5 Haiku (Older)' },
+      { id: 'claude-opus-4-7',           name: 'Claude Opus 4.7 (Best)' },
+      { id: 'claude-sonnet-4-6',         name: 'Claude Sonnet 4.6 (Balanced)' },
+      { id: 'claude-haiku-4-5',          name: 'Claude Haiku 4.5 (Fast)' },
+      { id: 'claude-3-5-sonnet-latest',  name: 'Claude 3.5 Sonnet' },
+      { id: 'claude-3-5-haiku-latest',   name: 'Claude 3.5 Haiku' }
     ],
     gemini: [
-      { id: 'gemini-3.5-flash',              name: 'Gemini 3.5 Flash (Latest)' },
-      { id: 'gemini-3.1-pro-preview',        name: 'Gemini 3.1 Pro Preview' },
-      { id: 'gemini-3.1-flash-lite',         name: 'Gemini 3.1 Flash Lite (Cost-Efficient)' },
-      { id: 'gemini-2.5-pro',                name: 'Gemini 2.5 Pro (Stable)' },
-      { id: 'gemini-2.5-flash',              name: 'Gemini 2.5 Flash (Stable)' },
-      { id: 'gemini-2.5-flash-lite',         name: 'Gemini 2.5 Flash Lite' },
-      { id: 'gemini-2.0-flash',              name: 'Gemini 2.0 Flash (Legacy)' },
-      { id: 'gemini-1.5-flash',              name: 'Gemini 1.5 Flash (Legacy)' },
-      { id: 'gemini-1.5-pro',                name: 'Gemini 1.5 Pro (Legacy)' },
+      { id: 'gemini-2.5-pro',        name: 'Gemini 2.5 Pro' },
+      { id: 'gemini-2.5-flash',      name: 'Gemini 2.5 Flash (Recommended)' },
+      { id: 'gemini-2.5-flash-lite', name: 'Gemini 2.5 Flash Lite' },
+      { id: 'gemini-2.0-flash',      name: 'Gemini 2.0 Flash' },
+      { id: 'gemini-1.5-pro',        name: 'Gemini 1.5 Pro' },
+      { id: 'gemini-1.5-flash',      name: 'Gemini 1.5 Flash' }
     ],
     openrouter: [
-      // Free models
-      { id: 'google/gemini-2.0-flash-exp:free',          name: '🆓 Gemini 2.0 Flash Exp' },
-      { id: 'deepseek/deepseek-r1:free',                 name: '🆓 DeepSeek R1 (Reasoning)' },
-      { id: 'deepseek/deepseek-chat:free',               name: '🆓 DeepSeek V3 Chat' },
-      { id: 'meta-llama/llama-4-scout:free',             name: '🆓 Llama 4 Scout' },
-      { id: 'meta-llama/llama-3.3-70b-instruct:free',    name: '🆓 Llama 3.3 70B' },
-      { id: 'qwen/qwen3-235b-a22b:free',                 name: '🆓 Qwen 3 235B' },
-      { id: 'microsoft/phi-4-reasoning:free',            name: '🆓 Phi-4 Reasoning' },
-      { id: 'mistralai/mistral-7b-instruct:free',        name: '🆓 Mistral 7B Instruct' },
-      // Paid models
-      { id: 'anthropic/claude-opus-4',                   name: '💰 Claude Opus 4' },
-      { id: 'anthropic/claude-sonnet-4-5',               name: '💰 Claude Sonnet 4.5' },
-      { id: 'openai/gpt-5.4',                            name: '💰 GPT-5.4' },
-      { id: 'openai/o3',                                 name: '💰 o3 (Reasoning)' },
-      { id: 'google/gemini-3.5-flash',                   name: '💰 Gemini 3.5 Flash' },
-      { id: 'x-ai/grok-3',                               name: '💰 Grok 3' },
-      { id: 'mistralai/mistral-large-2',                 name: '💰 Mistral Large 2' },
+      { id: 'google/gemini-2.0-flash-exp:free',       name: '🆓 Gemini 2.0 Flash Exp' },
+      { id: 'deepseek/deepseek-r1:free',              name: '🆓 DeepSeek R1 (Reasoning)' },
+      { id: 'deepseek/deepseek-chat:free',            name: '🆓 DeepSeek V3 Chat' },
+      { id: 'meta-llama/llama-3.3-70b-instruct:free', name: '🆓 Llama 3.3 70B' },
+      { id: 'mistralai/mistral-7b-instruct:free',     name: '🆓 Mistral 7B Instruct' },
+      { id: 'anthropic/claude-3.5-sonnet',            name: '💰 Claude 3.5 Sonnet' },
+      { id: 'openai/gpt-4o-mini',                     name: '💰 GPT-4o Mini' },
+      { id: 'google/gemini-2.5-flash',                name: '💰 Gemini 2.5 Flash' }
     ],
     nvidia: [
-      { id: 'meta/llama-4-scout-17b-16e-instruct',      name: 'Llama 4 Scout 17B' },
-      { id: 'meta/llama-4-maverick-17b-128e-instruct',  name: 'Llama 4 Maverick 17B' },
-      { id: 'meta/llama-3.1-70b-instruct',              name: 'Llama 3.1 70B' },
-      { id: 'meta/llama-3.1-405b-instruct',             name: 'Llama 3.1 405B' },
-      { id: 'deepseek-ai/deepseek-r1',                  name: 'DeepSeek R1' },
-      { id: 'nvidia/nemotron-4-340b-instruct',          name: 'Nemotron-4 340B' },
-      { id: 'qwen/qwen3-235b-a22b',                     name: 'Qwen 3 235B' },
-      { id: 'mistralai/mistral-large-2-instruct',       name: 'Mistral Large 2' },
-      { id: 'microsoft/phi-4',                          name: 'Phi-4' },
-      { id: 'google/gemma-3-27b-it',                    name: 'Gemma 3 27B' },
+      { id: 'meta/llama-3.3-70b-instruct',          name: 'Llama 3.3 70B' },
+      { id: 'meta/llama-3.1-70b-instruct',          name: 'Llama 3.1 70B' },
+      { id: 'meta/llama-3.1-405b-instruct',         name: 'Llama 3.1 405B' },
+      { id: 'deepseek-ai/deepseek-r1',              name: 'DeepSeek R1' },
+      { id: 'nvidia/llama-3.1-nemotron-70b-instruct', name: 'Nemotron 70B' },
+      { id: 'mistralai/mixtral-8x22b-instruct-v0.1', name: 'Mixtral 8x22B' },
+      { id: 'microsoft/phi-3-medium-128k-instruct', name: 'Phi-3 Medium 128k' },
+      { id: 'google/gemma-2-27b-it',                name: 'Gemma 2 27B' }
     ]
   };
 
   // ─── App State ─────────────────────────────────────────────────────────────
-  let currentSettings = {
-    provider: 'openai',
-    providersConfig: {
-      openai:     { url: DEFAULT_URLS.openai,     key: '', model: 'gpt-5.5' },
-      anthropic:  { url: DEFAULT_URLS.anthropic,  key: '', model: 'claude-sonnet-4-6' },
-      gemini:     { url: DEFAULT_URLS.gemini,     key: '', model: 'gemini-2.5-flash' },
-      openrouter: { url: DEFAULT_URLS.openrouter, key: '', model: 'google/gemini-2.0-flash-exp:free' },
-      nvidia:     { url: DEFAULT_URLS.nvidia,     key: '', model: 'meta/llama-4-scout-17b-16e-instruct' }
-    },
-    defaultPersona: 'storyteller',
-    defaultPlatform: 'linkedin',
-    defaultMode: 'rephrase',
-    autoSave: true,
-    language: 'en',
-    temperature: 0.85
-  };
+  function buildDefaultSettings() {
+    return {
+      provider: 'gemini',
+      providersConfig: {
+        openai:     { url: DEFAULT_URLS.openai,     key: '', model: 'gpt-4o-mini' },
+        anthropic:  { url: DEFAULT_URLS.anthropic,  key: '', model: 'claude-haiku-4-5' },
+        gemini:     { url: DEFAULT_URLS.gemini,     key: '', model: 'gemini-2.5-flash' },
+        openrouter: { url: DEFAULT_URLS.openrouter, key: '', model: 'google/gemini-2.0-flash-exp:free' },
+        nvidia:     { url: DEFAULT_URLS.nvidia,     key: '', model: 'meta/llama-3.3-70b-instruct' }
+      },
+      defaultPersona: 'storyteller',
+      defaultPlatform: 'twitter',
+      defaultMode: 'rephrase',
+      autoSave: true,
+      language: 'en',
+      temperature: 0.85
+    };
+  }
 
-  // Runtime cache for live-fetched models (keyed by provider)
-  const liveModelsCache = {};
+  let currentSettings = buildDefaultSettings();
+  const liveModelsCache = {}; // Live-fetched models per provider
 
   // ─── Live Model Fetching ───────────────────────────────────────────────────
-  /**
-   * Fetches the live model list from the provider's own API.
-   * Only OpenRouter has a public unauthenticated models endpoint.
-   * For others, we use the key stored in settings to call their models endpoint.
-   */
+  // Adds a 15s timeout so the UI never hangs on a bad key / slow network.
+  function fetchWithTimeout(url, opts = {}, ms = 15000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), ms);
+    return fetch(url, { ...opts, signal: controller.signal })
+      .finally(() => clearTimeout(timer));
+  }
+
+  async function safeReadError(res) {
+    const text = await res.text().catch(() => '');
+    try {
+      const json = JSON.parse(text);
+      return json?.error?.message || json?.detail || json?.message || `HTTP ${res.status}`;
+    } catch {
+      return text ? text.slice(0, 200) : `HTTP ${res.status}`;
+    }
+  }
+
   async function fetchLiveModels(provider) {
     const config = currentSettings.providersConfig[provider] || {};
-    const apiKey = config.key || els.apiKeyInput.value.trim();
+    const apiKey = (els.apiKeyInput.value.trim()) || config.key || '';
 
     switch (provider) {
       case 'openrouter': {
-        // OpenRouter has a free public models endpoint — no auth needed
-        const res = await fetch('https://openrouter.ai/api/v1/models', {
+        // OpenRouter exposes /models without auth
+        const res = await fetchWithTimeout('https://openrouter.ai/api/v1/models', {
           headers: { 'HTTP-Referer': 'https://vibecontent.pro', 'X-Title': 'VibeContent Pro' }
         });
-        if (!res.ok) throw new Error(`OpenRouter API error: ${res.status}`);
+        if (!res.ok) throw new Error(`OpenRouter: ${await safeReadError(res)}`);
         const data = await res.json();
-        return data.data
+        return (data.data || [])
           .sort((a, b) => (a.id > b.id ? 1 : -1))
-          .map(m => ({
-            id: m.id,
-            name: (m.pricing?.prompt === '0' ? '🆓 ' : '💰 ') + (m.name || m.id)
-          }));
+          .map(m => {
+            const isFree = m?.pricing?.prompt === '0' || m?.id?.endsWith(':free');
+            return {
+              id: m.id,
+              name: (isFree ? '🆓 ' : '💰 ') + (m.name || m.id)
+            };
+          });
       }
 
       case 'openai': {
-        if (!apiKey) throw new Error('API key required to fetch OpenAI models');
-        const res = await fetch('https://api.openai.com/v1/models', {
+        if (!apiKey) throw new Error('Paste your OpenAI API key first, then click Refresh.');
+        const res = await fetchWithTimeout('https://api.openai.com/v1/models', {
           headers: { 'Authorization': `Bearer ${apiKey}` }
         });
-        if (!res.ok) throw new Error(`OpenAI API error: ${res.status}`);
+        if (!res.ok) throw new Error(`OpenAI: ${await safeReadError(res)}`);
         const data = await res.json();
-        // Filter to only relevant chat models
-        return data.data
-          .filter(m => m.id.startsWith('gpt') || m.id.startsWith('o1') || m.id.startsWith('o3') || m.id.startsWith('o4'))
-          .sort((a, b) => b.created - a.created)
+        return (data.data || [])
+          .filter(m => /^(gpt|o\d|chatgpt)/i.test(m.id))
+          .sort((a, b) => (b.created || 0) - (a.created || 0))
           .map(m => ({ id: m.id, name: m.id }));
       }
 
       case 'gemini': {
-        if (!apiKey) throw new Error('API key required to fetch Gemini models');
-        const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models?key=${apiKey}`);
-        if (!res.ok) throw new Error(`Gemini API error: ${res.status}`);
+        if (!apiKey) throw new Error('Paste your Gemini API key first, then click Refresh.');
+        const res = await fetchWithTimeout(
+          `https://generativelanguage.googleapis.com/v1beta/models?key=${encodeURIComponent(apiKey)}`
+        );
+        if (!res.ok) throw new Error(`Gemini: ${await safeReadError(res)}`);
         const data = await res.json();
-        return (data.models || [])
+        const list = (data.models || [])
           .filter(m => m.supportedGenerationMethods?.includes('generateContent'))
           .map(m => ({
-            id: m.name.replace('models/', ''),
-            name: m.displayName || m.name.replace('models/', '')
+            id: m.name.replace(/^models\//, ''),
+            name: m.displayName || m.name.replace(/^models\//, '')
           }));
+        // Push "latest" / "flash" first for nicer UX
+        list.sort((a, b) => {
+          const score = (s) => (/flash/i.test(s) ? 0 : 1) + (/pro/i.test(s) ? 0 : 0.5);
+          return score(a.name) - score(b.name);
+        });
+        return list;
       }
 
       case 'anthropic': {
-        if (!apiKey) throw new Error('API key required to fetch Anthropic models');
-        const res = await fetch('https://api.anthropic.com/v1/models', {
+        if (!apiKey) throw new Error('Paste your Anthropic API key first, then click Refresh.');
+        const res = await fetchWithTimeout('https://api.anthropic.com/v1/models', {
           headers: {
             'x-api-key': apiKey,
             'anthropic-version': '2023-06-01',
             'anthropic-dangerous-direct-browser-access': 'true'
           }
         });
-        if (!res.ok) throw new Error(`Anthropic API error: ${res.status}`);
+        if (!res.ok) throw new Error(`Anthropic: ${await safeReadError(res)}`);
         const data = await res.json();
-        return (data.models || data.data || []).map(m => ({
+        return (data.data || data.models || []).map(m => ({
           id: m.id,
           name: m.display_name || m.id
         }));
       }
 
       case 'nvidia': {
-        if (!apiKey) throw new Error('API key required to fetch NVIDIA NIM models');
-        const res = await fetch('https://integrate.api.nvidia.com/v1/models', {
-          headers: { 'Authorization': `Bearer ${apiKey}` }
+        if (!apiKey) throw new Error('Paste your NVIDIA NIM API key first, then click Refresh.');
+        const res = await fetchWithTimeout('https://integrate.api.nvidia.com/v1/models', {
+          headers: { 'Authorization': `Bearer ${apiKey}`, 'Accept': 'application/json' }
         });
-        if (!res.ok) throw new Error(`NVIDIA API error: ${res.status}`);
+        if (!res.ok) throw new Error(`NVIDIA NIM: ${await safeReadError(res)}`);
         const data = await res.json();
-        return (data.data || []).map(m => ({ id: m.id, name: m.id }));
+        return (data.data || [])
+          .map(m => ({ id: m.id, name: m.id }))
+          .sort((a, b) => (a.id > b.id ? 1 : -1));
       }
 
       default:
@@ -231,13 +242,11 @@ document.addEventListener('DOMContentLoaded', async () => {
       dropdown.appendChild(opt);
     });
 
-    // Always add custom option at the bottom
     const customOpt = document.createElement('option');
     customOpt.value = '__custom__';
     customOpt.textContent = '✏️ Enter Custom Model ID...';
     dropdown.appendChild(customOpt);
 
-    // Restore saved selection
     const isPreset = models.find(m => m.id === savedModel);
     if (isPreset) {
       dropdown.value = savedModel;
@@ -252,11 +261,8 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
-  // ─── Update full UI for a given provider ──────────────────────────────────
   function updateUIForProvider(provider) {
     const config = currentSettings.providersConfig[provider] || {};
-
-    // Use live-fetched models if cached, else fallback
     const models = liveModelsCache[provider] || FALLBACK_MODELS[provider] || [];
     populateModelDropdown(models, config.model);
 
@@ -264,9 +270,11 @@ document.addEventListener('DOMContentLoaded', async () => {
     els.apiKeyInput.value  = config.key || '';
     els.apiKeyHint.innerHTML = HINTS[provider] || '';
 
-    // Reset fetch status
     els.modelFetchStatus.style.display = 'none';
     els.modelFetchStatus.textContent = '';
+
+    // Clear test status when provider changes
+    setConnectionStatus('#444', '', 'var(--text-light)');
   }
 
   function getCurrentModel() {
@@ -275,47 +283,64 @@ document.addEventListener('DOMContentLoaded', async () => {
       : els.modelDropdown.value;
   }
 
+  function setConnectionStatus(color, text, textColor) {
+    els.connectionStatusIndicator.style.backgroundColor = color;
+    els.connectionStatusText.textContent = text;
+    els.connectionStatusText.style.color = textColor || color;
+  }
+
   // ─── Refresh Button Handler ────────────────────────────────────────────────
+  let refreshInFlight = false;
   async function handleRefreshModels() {
+    if (refreshInFlight) return;
+    refreshInFlight = true;
     const provider = els.providerSelect.value;
     const apiKey   = els.apiKeyInput.value.trim();
 
-    // Temporarily store the key so fetchLiveModels can read it
+    // Persist current key into in-memory state immediately so a follow-up Save
+    // (or provider switch) doesn't lose what the user just typed.
     if (!currentSettings.providersConfig[provider]) {
-      currentSettings.providersConfig[provider] = {};
+      currentSettings.providersConfig[provider] = { url: DEFAULT_URLS[provider], key: '', model: '' };
     }
     currentSettings.providersConfig[provider].key = apiKey;
+    currentSettings.providersConfig[provider].url = els.baseUrlInput.value.trim() || DEFAULT_URLS[provider];
 
-    // UI loading state
     els.refreshModelsBtn.disabled = true;
     els.refreshBtnText.textContent = 'Fetching...';
     els.refreshIcon.style.animation = 'spin 1s linear infinite';
     els.modelFetchStatus.style.display = 'block';
     els.modelFetchStatus.style.color = 'var(--text-light)';
-    els.modelFetchStatus.textContent = '⏳ Fetching live models from provider...';
+    els.modelFetchStatus.textContent = '⏳ Fetching live models from ' + provider + '...';
 
     try {
       const models = await fetchLiveModels(provider);
+      if (!models.length) throw new Error('Provider returned no models');
       liveModelsCache[provider] = models;
 
-      const currentModel = getCurrentModel();
-      populateModelDropdown(models, currentModel || currentSettings.providersConfig[provider]?.model);
+      const currentModel = getCurrentModel() || currentSettings.providersConfig[provider]?.model;
+      // If currently-selected model no longer exists in the live list, fall back to the first one
+      const preferred = models.find(m => m.id === currentModel)?.id || models[0].id;
+      populateModelDropdown(models, preferred);
+      currentSettings.providersConfig[provider].model = preferred;
 
       els.modelFetchStatus.style.color = 'var(--success)';
-      els.modelFetchStatus.textContent = `✅ ${models.length} models loaded live`;
+      els.modelFetchStatus.textContent = `✅ Loaded ${models.length} live models from ${provider}.`;
     } catch (err) {
+      const isAbort = err?.name === 'AbortError';
       els.modelFetchStatus.style.color = 'var(--danger)';
-      els.modelFetchStatus.textContent = `⚠️ Live fetch failed: ${err.message}. Showing built-in list.`;
+      els.modelFetchStatus.textContent =
+        `⚠️ ${isAbort ? 'Request timed out' : err.message}. Showing built-in list — paste a valid key and try again.`;
     } finally {
       els.refreshModelsBtn.disabled = false;
       els.refreshBtnText.textContent = 'Refresh';
       els.refreshIcon.style.animation = '';
+      refreshInFlight = false;
     }
   }
 
   // ─── Event Listeners ───────────────────────────────────────────────────────
 
-  // Provider change: save current state, load new provider
+  // Provider change: persist current fields into old provider, load new one
   els.providerSelect.addEventListener('change', (e) => {
     const oldProvider = currentSettings.provider;
     if (currentSettings.providersConfig[oldProvider]) {
@@ -341,6 +366,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Refresh button
   els.refreshModelsBtn.addEventListener('click', handleRefreshModels);
 
+  // API key field: pasting a key auto-refreshes the model list after a short debounce.
+  let pasteRefreshTimer = null;
+  function schedulePasteRefresh() {
+    clearTimeout(pasteRefreshTimer);
+    const value = els.apiKeyInput.value.trim();
+    if (!value || value.length < 8) return;
+    pasteRefreshTimer = setTimeout(() => {
+      // Only auto-refresh if we haven't already cached live models for this provider
+      const provider = els.providerSelect.value;
+      if (!liveModelsCache[provider]) handleRefreshModels();
+    }, 600);
+  }
+  els.apiKeyInput.addEventListener('paste', () => setTimeout(schedulePasteRefresh, 50));
+  els.apiKeyInput.addEventListener('input', schedulePasteRefresh);
+
   // Show/hide API key
   els.toggleKeyVisibility.addEventListener('click', () => {
     const isPassword = els.apiKeyInput.type === 'password';
@@ -356,26 +396,21 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Save button
   els.saveBtn.addEventListener('click', saveSettings);
 
-  // Test Connection button
+  // Test Connection button — also writes settings on success so the sidepanel
+  // is guaranteed to pick up the working key without an extra Save click.
   els.testConnectionBtn.addEventListener('click', async () => {
     const provider = els.providerSelect.value;
     const url      = els.baseUrlInput.value.trim();
     const model    = getCurrentModel();
     const apiKey   = els.apiKeyInput.value.trim();
 
-    const setStatus = (color, text, textColor) => {
-      els.connectionStatusIndicator.style.backgroundColor = color;
-      els.connectionStatusText.textContent = text;
-      els.connectionStatusText.style.color = textColor || color;
-    };
-
-    if (!apiKey)                        { setStatus('var(--danger)', 'Please enter an API key first'); return; }
-    if (!url || !url.startsWith('https://')) { setStatus('var(--danger)', 'A secure Base URL (https://) is required'); return; }
-    if (!model)                         { setStatus('var(--danger)', 'Please select or enter a model ID'); return; }
+    if (!apiKey) { setConnectionStatus('var(--danger)', 'Please enter an API key first'); return; }
+    if (!url || !url.startsWith('https://')) { setConnectionStatus('var(--danger)', 'A secure Base URL (https://) is required'); return; }
+    if (!model)  { setConnectionStatus('var(--danger)', 'Please select or enter a model ID'); return; }
 
     els.testConnectionBtn.disabled = true;
     els.testConnectionBtn.textContent = 'Testing...';
-    setStatus('#f1c40f', 'Connecting...', 'var(--text-light)');
+    setConnectionStatus('#f1c40f', 'Connecting...', 'var(--text-light)');
 
     try {
       const response = await chrome.runtime.sendMessage({
@@ -384,12 +419,19 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
 
       if (response && response.success) {
-        setStatus('var(--success)', 'Connected successfully!');
+        // Persist immediately so the side panel sees the working key right away.
+        currentSettings.provider = provider;
+        if (!currentSettings.providersConfig[provider]) currentSettings.providersConfig[provider] = {};
+        currentSettings.providersConfig[provider].url   = url;
+        currentSettings.providersConfig[provider].model = model;
+        currentSettings.providersConfig[provider].key   = apiKey;
+        await chrome.storage.local.set({ settings: currentSettings });
+        setConnectionStatus('var(--success)', 'Connected — settings saved');
       } else {
         throw new Error(response?.error || 'Unknown error');
       }
     } catch (error) {
-      setStatus('var(--danger)', `Failed: ${error.message}`);
+      setConnectionStatus('var(--danger)', `Failed: ${error.message}`);
     } finally {
       els.testConnectionBtn.disabled = false;
       els.testConnectionBtn.textContent = 'Test Connection';
@@ -415,31 +457,11 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // ─── Core Functions ────────────────────────────────────────────────────────
-
-  function buildDefaultSettings() {
-    return {
-      provider: 'openai',
-      providersConfig: {
-        openai:     { url: DEFAULT_URLS.openai,     key: '', model: 'gpt-5.5' },
-        anthropic:  { url: DEFAULT_URLS.anthropic,  key: '', model: 'claude-sonnet-4-6' },
-        gemini:     { url: DEFAULT_URLS.gemini,     key: '', model: 'gemini-2.5-flash' },
-        openrouter: { url: DEFAULT_URLS.openrouter, key: '', model: 'google/gemini-2.0-flash-exp:free' },
-        nvidia:     { url: DEFAULT_URLS.nvidia,     key: '', model: 'meta/llama-4-scout-17b-16e-instruct' }
-      },
-      defaultPersona: 'storyteller',
-      defaultPlatform: 'linkedin',
-      defaultMode: 'rephrase',
-      autoSave: true,
-      language: 'en',
-      temperature: 0.85
-    };
-  }
-
   function applySettingsToUI() {
-    els.providerSelect.value  = currentSettings.provider || 'openai';
+    els.providerSelect.value  = currentSettings.provider || 'gemini';
     updateUIForProvider(els.providerSelect.value);
     els.defaultPersona.value  = currentSettings.defaultPersona  || 'storyteller';
-    els.defaultPlatform.value = currentSettings.defaultPlatform || 'linkedin';
+    els.defaultPlatform.value = currentSettings.defaultPlatform || 'twitter';
     els.defaultMode.value     = currentSettings.defaultMode     || 'rephrase';
     els.defaultTemp.value     = currentSettings.temperature     || 0.85;
     els.defaultTempValue.textContent = currentSettings.temperature || 0.85;
@@ -449,7 +471,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   async function loadSettings() {
     const result = await chrome.storage.local.get(['settings']);
     if (result.settings) {
-      // Deep merge: start from defaults so new providers always have their defaults
       const defaults = buildDefaultSettings();
       currentSettings = {
         ...defaults,
@@ -460,7 +481,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         }
       };
 
-      // Migration: if old single-key format, migrate to new format
+      // Legacy migration: single apiKey/model into the new providersConfig shape
       if (!result.settings.providersConfig && result.settings.apiKey) {
         const p = currentSettings.provider;
         currentSettings.providersConfig[p].key   = result.settings.apiKey;
@@ -477,7 +498,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       if (!currentSettings.providersConfig[provider]) {
         currentSettings.providersConfig[provider] = {};
       }
-      currentSettings.providersConfig[provider].url   = els.baseUrlInput.value.trim();
+      currentSettings.providersConfig[provider].url   = els.baseUrlInput.value.trim() || DEFAULT_URLS[provider];
       currentSettings.providersConfig[provider].model = getCurrentModel();
       currentSettings.providersConfig[provider].key   = els.apiKeyInput.value.trim();
 
@@ -487,9 +508,18 @@ document.addEventListener('DOMContentLoaded', async () => {
       currentSettings.temperature     = parseFloat(els.defaultTemp.value);
       currentSettings.autoSave        = els.autoSave.checked;
 
-      // Security: ONLY use chrome.storage.local — keys never leave the device
+      // chrome.storage.local only — keys never sync, never leave the device.
       await chrome.storage.local.set({ settings: currentSettings });
-      showStatus('Settings saved successfully!', 'success');
+
+      const hasKey = !!currentSettings.providersConfig[provider].key;
+      const hasModel = !!currentSettings.providersConfig[provider].model;
+      if (!hasKey) {
+        showStatus('Saved, but no API key set for ' + provider + '.', 'error');
+      } else if (!hasModel) {
+        showStatus('Saved, but no model selected for ' + provider + '.', 'error');
+      } else {
+        showStatus('Settings saved successfully!', 'success');
+      }
     } catch (error) {
       showStatus('Failed to save: ' + error.message, 'error');
     }
