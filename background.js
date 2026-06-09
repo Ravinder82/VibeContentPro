@@ -189,7 +189,7 @@ async function fetchOpenAI({ url, apiKey, model, data, temperature }) {
         { role: 'user',   content: data.userPrompt }
       ],
       temperature,
-      max_tokens: 8192,
+      max_tokens: 2500,
       top_p: 0.92,
       frequency_penalty: 0.3,
       presence_penalty: 0.4
@@ -203,6 +203,12 @@ async function fetchOpenAI({ url, apiKey, model, data, temperature }) {
 
   const result = await response.json();
   const content = result?.choices?.[0]?.message?.content;
+  const finishReason = result?.choices?.[0]?.finish_reason;
+
+  if (finishReason && finishReason !== 'stop') {
+    throw new Error(`OpenAI stopped unexpectedly mid-generation (Reason: ${finishReason})`);
+  }
+
   if (!content) throw new Error('OpenAI returned no content');
   return { content };
 }
@@ -219,7 +225,7 @@ async function fetchAnthropic({ url, apiKey, model, data, temperature }) {
     },
     body: JSON.stringify({
       model,
-      max_tokens: 8192,
+      max_tokens: 2500,
       temperature,
       system: data.systemPrompt,
       messages: [
@@ -236,25 +242,38 @@ async function fetchAnthropic({ url, apiKey, model, data, temperature }) {
   const result = await response.json();
   const block = result?.content?.find(b => b.type === 'text') || result?.content?.[0];
   const content = block?.text;
+  const stopReason = result?.stop_reason;
+
+  if (stopReason && stopReason !== 'end_turn' && stopReason !== 'stop_sequence') {
+    throw new Error(`Anthropic stopped unexpectedly mid-generation (Reason: ${stopReason})`);
+  }
+
   if (!content) throw new Error('Anthropic returned no text content');
   return { content };
 }
 
 async function fetchGemini({ url: baseUrl, apiKey, model, data, temperature }) {
-  // Ensure baseUrl ends with the trailing slash before the model id
-  const root = baseUrl.endsWith('/') ? baseUrl : baseUrl + '/';
-  const endpoint = `${root}${encodeURIComponent(model)}:generateContent?key=${encodeURIComponent(apiKey)}`;
+  let endpoint = baseUrl;
+  if (!endpoint || endpoint === FALLBACK_URLS.gemini) {
+    endpoint = `https://generativelanguage.googleapis.com/v1beta/models/${model}:generateContent?key=${apiKey}`;
+  }
 
   const response = await fetch(endpoint, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
-      contents: [{
-        parts: [{ text: `${data.systemPrompt}\n\n${data.userPrompt}` }]
-      }],
+      contents: [
+        { role: 'user', parts: [{ text: `${data.systemPrompt}\n\n${data.userPrompt}` }] }
+      ],
+      safetySettings: [
+        { category: "HARM_CATEGORY_HARASSMENT", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_HATE_SPEECH", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_SEXUALLY_EXPLICIT", threshold: "BLOCK_NONE" },
+        { category: "HARM_CATEGORY_DANGEROUS_CONTENT", threshold: "BLOCK_NONE" }
+      ],
       generationConfig: {
         temperature,
-        maxOutputTokens: 8192,
+        maxOutputTokens: 2500,
         topP: 0.92
       }
     })
@@ -267,11 +286,19 @@ async function fetchGemini({ url: baseUrl, apiKey, model, data, temperature }) {
 
   const result = await response.json();
   const parts = result?.candidates?.[0]?.content?.parts;
+  const finishReason = result?.candidates?.[0]?.finishReason;
+  
   if (!parts || !parts.length) {
     // Most common case: blocked by safety filter
-    const reason = result?.candidates?.[0]?.finishReason || result?.promptFeedback?.blockReason;
+    const reason = finishReason || result?.promptFeedback?.blockReason;
     throw new Error(reason ? `Gemini blocked response: ${reason}` : 'Unexpected Gemini response format');
   }
+  
+  // If the generation stopped due to SAFETY or other reasons before finishing naturally
+  if (finishReason && finishReason !== 'STOP') {
+    throw new Error(`Gemini stopped unexpectedly mid-generation (Reason: ${finishReason})`);
+  }
+
   const content = parts.map(p => p.text || '').join('').trim();
   if (!content) throw new Error('Gemini returned empty content');
   return { content };
@@ -293,7 +320,7 @@ async function fetchOpenRouter({ url, apiKey, model, data, temperature }) {
         { role: 'user',   content: data.userPrompt }
       ],
       temperature,
-      max_tokens: 8192
+      max_tokens: 2500
     })
   });
 
@@ -304,6 +331,12 @@ async function fetchOpenRouter({ url, apiKey, model, data, temperature }) {
 
   const result = await response.json();
   const content = result?.choices?.[0]?.message?.content;
+  const finishReason = result?.choices?.[0]?.finish_reason;
+
+  if (finishReason && finishReason !== 'stop') {
+    throw new Error(`OpenRouter stopped unexpectedly mid-generation (Reason: ${finishReason})`);
+  }
+
   if (!content) throw new Error('OpenRouter returned no content');
   return { content };
 }
@@ -323,7 +356,7 @@ async function fetchNvidiaNim({ url, apiKey, model, data, temperature }) {
         { role: 'user',   content: data.userPrompt }
       ],
       temperature,
-      max_tokens: 8192,
+      max_tokens: 2500,
       top_p: 1,
       stream: false
     })
@@ -336,6 +369,12 @@ async function fetchNvidiaNim({ url, apiKey, model, data, temperature }) {
 
   const result = await response.json();
   const content = result?.choices?.[0]?.message?.content;
+  const finishReason = result?.choices?.[0]?.finish_reason;
+
+  if (finishReason && finishReason !== 'stop') {
+    throw new Error(`NVIDIA NIM stopped unexpectedly mid-generation (Reason: ${finishReason})`);
+  }
+
   if (!content) throw new Error('NVIDIA NIM returned no content');
   return { content };
 }
@@ -389,7 +428,7 @@ function extractPageData() {
     .replace(/\s+/g, ' ')
     .replace(/\n\s*\n/g, '\n')
     .trim()
-    .substring(0, 15000);
+    .substring(0, 6000);
 
   return {
     title: document.title,
@@ -479,7 +518,7 @@ async function fetchUrlContent(url) {
     const text = (doc.body?.textContent || '')
       .replace(/\s+/g, ' ')
       .trim()
-      .substring(0, 15000);
+      .substring(0, 6000);
 
     return {
       title,

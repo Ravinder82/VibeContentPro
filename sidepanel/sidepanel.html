@@ -76,63 +76,67 @@
     <!-- Configuration Section -->
     <section class="config-section">
       <div class="section-label">CONFIGURATION</div>
+      <div id="newConfigContainer" class="config-container">
+        
+        <!-- Mini Scientist Chat Bot (GenZ Aesthetic) -->
+        <div class="chatbot-container" style="background: linear-gradient(145deg, rgba(255,255,255,0.05) 0%, rgba(255,255,255,0.01) 100%); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); border: 1px solid rgba(255,255,255,0.1); border-radius: 20px; padding: 20px; margin-bottom: 20px; box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.3);">
+          
+          <div class="chatbot-header" style="display: flex; flex-direction: column; align-items: center; gap: 10px; margin-bottom: 15px; text-align: center;">
+            <div class="mascot-wrapper" style="width: 70px; height: 70px; position: relative; border-radius: 50%; background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%); padding: 3px; box-shadow: 0 0 20px rgba(139, 92, 246, 0.4);">
+              <div style="width: 100%; height: 100%; background: var(--bg); border-radius: 50%; display: flex; align-items: center; justify-content: center; overflow: hidden;">
+                <!-- Better Mini Scientist SVG -->
+                <svg viewBox="0 0 100 100" class="scientist-svg" style="width: 80%; height: 80%; filter: drop-shadow(0 2px 4px rgba(0,0,0,0.5));">
+                  <!-- Hair -->
+                  <path d="M20 50 C 20 20, 80 20, 80 50" fill="var(--text)" />
+                  <path d="M15 40 Q 30 10 50 20 Q 70 10 85 40" fill="var(--text)" />
+                  <!-- Face -->
+                  <path d="M25 45 C 25 80, 75 80, 75 45" fill="#FFD1BA" />
+                  <!-- Goggles/Glasses (Sci-Fi) -->
+                  <rect x="20" y="42" width="60" height="18" rx="6" fill="rgba(139, 92, 246, 0.3)" stroke="var(--primary)" stroke-width="3" />
+                  <line x1="50" y1="42" x2="50" y2="60" stroke="var(--primary)" stroke-width="3" />
+                  <!-- Eyes glowing inside goggles -->
+                  <circle cx="35" cy="51" r="3" fill="#FFF" />
+                  <circle cx="65" cy="51" r="3" fill="#FFF" />
+                  <!-- Cute smile -->
+                  <path d="M45 70 Q 50 75 55 70" stroke="var(--text)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                </svg>
+              </div>
+              <!-- Online indicator dot -->
+              <div style="position: absolute; bottom: 2px; right: 2px; width: 14px; height: 14px; background: #10B981; border: 3px solid var(--bg); border-radius: 50%;"></div>
+            </div>
+            
+            <div class="chatbot-info">
+              <div style="font-size: 14px; font-weight: 700; background: linear-gradient(to right, var(--primary), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 0.5px;">PAGE EXPERT BOT</div>
+              <div class="tips-carousel" id="chatbotTips" style="font-size: 12px; color: var(--text-light); font-style: italic; margin-top: 4px; animation: pulseOpacity 2s infinite alternate;">
+                Try: "Summarize this page"
+              </div>
+            </div>
+          </div>
+          
+          <div id="chatbotResponse" class="chatbot-response hidden" style="background: rgba(0,0,0,0.3); border-radius: 12px; padding: 15px; font-size: 13px; color: var(--text); margin-bottom: 15px; border: 1px solid rgba(255,255,255,0.05); max-height: 60vh; overflow-y: auto; line-height: 1.5;">
+            <!-- Chat response shows here -->
+          </div>
 
-      <div class="config-grid">
-        <div class="config-item">
-          <label>Platform</label>
-          <select id="platformSelect" class="select-input">
-            <option value="twitter">Article</option>
-            <option value="tiktok">TikTok</option>
-            <option value="youtube">YouTube Shorts</option>
-            <option value="slideshows">Slideshows</option>
+          <div class="chatbot-input-wrapper" style="position: relative; display: flex; align-items: center;">
+            <input type="text" id="chatInput" class="text-input" placeholder="Ask about this page..." style="width: 100%; background: rgba(0,0,0,0.4); border: 1px solid rgba(255,255,255,0.1); border-radius: 30px; padding: 12px 50px 12px 20px; font-size: 13px; color: var(--text); outline: none; transition: all 0.3s ease;">
+            <button id="sendChatBtn" class="icon-btn" style="position: absolute; right: 6px; width: 32px; height: 32px; border-radius: 50%; background: linear-gradient(135deg, var(--primary) 0%, var(--accent) 100%); border: none; display: flex; align-items: center; justify-content: center; cursor: pointer; color: white;">
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="margin-left:-2px;"><line x1="22" y1="2" x2="11" y2="13"></line><polygon points="22 2 15 22 11 13 2 9 22 2"></polygon></svg>
+            </button>
+          </div>
+        </div>
+
+        <!-- Bring Your Own Prompts (BYOP) -->
+        <div class="byop-container">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px;">
+            <label for="customPromptSelect" style="margin-bottom: 0;">Generate using Custom Prompt</label>
+            <a href="#" id="editPromptsLink" style="font-size: 12px; color: var(--primary); text-decoration: none;">Manage</a>
+          </div>
+          <select id="customPromptSelect" class="select-input">
+            <option value="">Loading prompts...</option>
           </select>
+          <p class="config-hint" id="customPromptHint" style="margin-top: 6px; font-style: italic;"></p>
         </div>
 
-        <div class="config-item">
-          <label>
-            Persona
-            <span id="personaAutoBadge" class="auto-badge hidden" title="AI-suggested for this platform">AI-Picked</span>
-          </label>
-          <select id="personaSelect" class="select-input"></select>
-          <p id="personaHint" class="config-hint"></p>
-        </div>
-
-        <div class="config-item">
-          <label>
-            Mode
-            <span id="modeAutoBadge" class="auto-badge hidden" title="AI-suggested for this platform">AI-Picked</span>
-          </label>
-          <select id="modeSelect" class="select-input"></select>
-          <p id="modeHint" class="config-hint"></p>
-        </div>
-      </div>
-
-      <div class="config-advanced">
-        <button id="advancedToggle" class="text-btn">
-          [ + ] Advanced Options
-        </button>
-        <div id="advancedPanel" class="advanced-panel hidden">
-          <div class="config-item full-width">
-            <label>Custom Instructions (Optional)</label>
-            <textarea id="customInstructions" class="text-area small" placeholder="e.g., Focus on the environmental impact. Mention the 2025 study. Keep it under 200 words."></textarea>
-          </div>
-          <div class="config-grid">
-            <div class="config-item">
-              <label>Temperature</label>
-              <input type="range" id="tempSlider" min="0.5" max="1.0" step="0.05" value="0.85" class="range-input">
-              <span id="tempValue">0.85</span>
-            </div>
-            <div class="config-item">
-              <label>Batch Count</label>
-              <select id="batchSelect" class="select-input">
-                <option value="1">1 variation</option>
-                <option value="3">3 variations</option>
-                <option value="5">5 variations</option>
-                <option value="10">10 variations</option>
-              </select>
-            </div>
-          </div>
-        </div>
       </div>
     </section>
 
@@ -147,6 +151,51 @@
           Generating...
         </span>
       </button>
+
+      <!-- Dynamic Sliders -->
+      <div class="sliders-container" style="margin-top: 20px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 20px 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
+        <div style="font-size: 10px; color: var(--text-light); font-weight: 700; text-transform: uppercase; margin-bottom: 20px; letter-spacing: 1.5px; text-align: center; opacity: 0.7;">Vibe Control</div>
+        
+        <div class="slider-group" style="margin-bottom: 24px;">
+          <div style="font-size: 11px; color: var(--text); font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; text-align: center; margin-bottom: 12px; text-shadow: 0 0 10px rgba(255,255,255,0.1);">
+            Humanization
+          </div>
+          <div style="position: relative; padding: 0 10px;">
+            <input type="range" id="humanizationSlider" class="genz-slider slider-humanization" min="0" max="100" value="70">
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 9px; color: var(--text-light); margin-top: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; padding: 0 5px;">
+            <span>Standard</span>
+            <span>Unhinged</span>
+          </div>
+        </div>
+
+        <div class="slider-group" style="margin-bottom: 24px;">
+          <div style="font-size: 11px; color: var(--text); font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; text-align: center; margin-bottom: 12px; text-shadow: 0 0 10px rgba(255,255,255,0.1);">
+            Tone
+          </div>
+          <div style="position: relative; padding: 0 10px;">
+            <input type="range" id="toneSlider" class="genz-slider slider-tone" min="0" max="100" value="50">
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 9px; color: var(--text-light); margin-top: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; padding: 0 5px;">
+            <span>Serious</span>
+            <span>Funny</span>
+          </div>
+        </div>
+
+        <div class="slider-group">
+          <div style="font-size: 11px; color: var(--text); font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; text-align: center; margin-bottom: 12px; text-shadow: 0 0 10px rgba(255,255,255,0.1);">
+            Length
+          </div>
+          <div style="position: relative; padding: 0 10px;">
+            <input type="range" id="lengthSlider" class="genz-slider slider-length" min="0" max="100" value="50">
+          </div>
+          <div style="display: flex; justify-content: space-between; font-size: 9px; color: var(--text-light); margin-top: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; padding: 0 5px;">
+            <span>Short</span>
+            <span>Long</span>
+          </div>
+        </div>
+      </div>
+
       <div id="apiWarning" class="warning-msg hidden">
         Please configure your API key in Settings first
       </div>
@@ -166,11 +215,7 @@
 
       <div id="outputContent" class="output-content hidden">
         <div class="output-header">
-          <div class="output-meta">
-            <span id="outputPersona" class="meta-tag"></span>
-            <span id="outputPlatform" class="meta-tag"></span>
-            <span id="outputMode" class="meta-tag"></span>
-          </div>
+
           <div class="output-actions">
             <button id="copyBtn" class="action-btn" title="Copy to clipboard">
               Copy

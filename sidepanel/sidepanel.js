@@ -25,26 +25,23 @@ document.addEventListener('DOMContentLoaded', async () => {
     wordCount: document.getElementById('wordCount'),
     charCount: document.getElementById('charCount'),
     domainName: document.getElementById('domainName'),
-    personaSelect: document.getElementById('personaSelect'),
-    personaAutoBadge: document.getElementById('personaAutoBadge'),
-    personaHint: document.getElementById('personaHint'),
-    platformSelect: document.getElementById('platformSelect'),
-    modeSelect: document.getElementById('modeSelect'),
-    modeAutoBadge: document.getElementById('modeAutoBadge'),
-    modeHint: document.getElementById('modeHint'),
-    advancedToggle: document.getElementById('advancedToggle'),
-    advancedPanel: document.getElementById('advancedPanel'),
-    customInstructions: document.getElementById('customInstructions'),
-    tempSlider: document.getElementById('tempSlider'),
-    tempValue: document.getElementById('tempValue'),
-    batchSelect: document.getElementById('batchSelect'),
+    
     generateBtn: document.getElementById('generateBtn'),
     apiWarning: document.getElementById('apiWarning'),
     outputEmpty: document.getElementById('outputEmpty'),
     outputContent: document.getElementById('outputContent'),
-    outputPersona: document.getElementById('outputPersona'),
-    outputPlatform: document.getElementById('outputPlatform'),
-    outputMode: document.getElementById('outputMode'),
+
+    chatInput: document.getElementById('chatInput'),
+    sendChatBtn: document.getElementById('sendChatBtn'),
+    chatbotResponse: document.getElementById('chatbotResponse'),
+    customPromptSelect: document.getElementById('customPromptSelect'),
+    customPromptHint: document.getElementById('customPromptHint'),
+    editPromptsLink: document.getElementById('editPromptsLink'),
+
+    humanizationSlider: document.getElementById('humanizationSlider'),
+    toneSlider: document.getElementById('toneSlider'),
+    lengthSlider: document.getElementById('lengthSlider'),
+
     copyBtn: document.getElementById('copyBtn'),
     saveBtn: document.getElementById('saveBtn'),
     regenerateBtn: document.getElementById('regenerateBtn'),
@@ -59,10 +56,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     toast: document.getElementById('toast'),
     toastMessage: document.getElementById('toastMessage')
   };
-
-  // Tracks whether the user manually changed persona/mode for the current
-  // platform. It must exist before loadSettings() runs.
-  const userOverrides = { persona: false, mode: false };
 
   // Initialize
   setupEventListeners();
@@ -81,139 +74,47 @@ document.addEventListener('DOMContentLoaded', async () => {
   // Functions
   function getActiveApiKey(s) {
     if (!s) return '';
-    // New multi-provider format
     const provider = s.provider;
     const key = s.providersConfig?.[provider]?.key;
     if (key) return key;
-    // Legacy single-key format (back-compat)
     return s.apiKey || '';
   }
 
-  function isValidPlatform(p) {
-    return !!(window.PromptEngine && PromptEngine.platforms && PromptEngine.platforms[p]);
-  }
-
-  function syncCustomSelect(select) {
-    if (window.refreshCustomSelect) {
-      window.refreshCustomSelect(select);
-    } else {
-      select.dispatchEvent(new Event('change'));
-    }
-  }
-
-  function rebuildPersonaDropdown(platformKey, preferred) {
-    const sel = els.personaSelect;
-    sel.innerHTML = '';
-    const list = PromptEngine.getPersonasForPlatform(platformKey);
-    list.forEach(p => {
-      const opt = document.createElement('option');
-      opt.value = p.key;
-      opt.textContent = p.isRecommended ? `${p.name} — Recommended` : p.name;
-      sel.appendChild(opt);
-    });
-    const fallback = (list.find(p => p.isDefault) || list[0])?.key;
-    const chosen = list.find(p => p.key === preferred) ? preferred : fallback;
-    if (chosen) sel.value = chosen;
-    updatePersonaHint();
-    syncCustomSelect(sel);
-  }
-
-  function rebuildModeDropdown(platformKey, preferred) {
-    const sel = els.modeSelect;
-    sel.innerHTML = '';
-    const list = PromptEngine.getModesForPlatform(platformKey);
-
-    const platformGroup = document.createElement('optgroup');
-    platformGroup.label = `Built for ${PromptEngine.platforms[platformKey].name}`;
-    const universalGroup = document.createElement('optgroup');
-    universalGroup.label = 'All-rounder modes';
-
-    list.forEach(m => {
-      const opt = document.createElement('option');
-      opt.value = m.key;
-      opt.textContent = m.isRecommended ? `${m.name} — Recommended` : m.name;
-      (m.isUniversal ? universalGroup : platformGroup).appendChild(opt);
-    });
-    if (platformGroup.childNodes.length)  sel.appendChild(platformGroup);
-    if (universalGroup.childNodes.length) sel.appendChild(universalGroup);
-
-    const fallback = (list.find(m => m.isDefault) || list[0])?.key;
-    const chosen = list.find(m => m.key === preferred) ? preferred : fallback;
-    if (chosen) sel.value = chosen;
-    updateModeHint();
-    syncCustomSelect(sel);
-  }
-
-  function updatePersonaHint() {
-    const key = els.personaSelect.value;
-    const persona = PromptEngine.personas[key];
-    els.personaHint.textContent = persona?.description || '';
-  }
-  function updateModeHint() {
-    const key = els.modeSelect.value;
-    const mode = PromptEngine.modes[key];
-    els.modeHint.textContent = mode?.description || '';
-  }
-
-  function applyAutoSuggestion(platformKey, { keepUserChoice = false } = {}) {
-    const platform = PromptEngine.platforms[platformKey];
-    if (!platform) return;
-
-    const preferredPersona = keepUserChoice && userOverrides.persona
-      ? els.personaSelect.value
-      : platform.defaultPersona;
-    const preferredMode = keepUserChoice && userOverrides.mode
-      ? els.modeSelect.value
-      : platform.defaultMode;
-
-    rebuildPersonaDropdown(platformKey, preferredPersona);
-    rebuildModeDropdown(platformKey, preferredMode);
-
-    // Badge: visible when the current value matches the platform's recommendation
-    els.personaAutoBadge.classList.toggle('hidden', els.personaSelect.value !== platform.defaultPersona);
-    els.modeAutoBadge.classList.toggle('hidden', els.modeSelect.value !== platform.defaultMode);
-  }
-
   async function loadSettings() {
-    const response = await chrome.runtime.sendMessage({ action: 'getSettings' });
-    settings = response || {};
-
-    if (settings.temperature) {
-      els.tempSlider.value = settings.temperature;
-      els.tempValue.textContent = settings.temperature;
-    }
-
-    // Resolve platform: settings → legacy fallback → first valid platform
-    let platform = settings.defaultPlatform;
-    if (!isValidPlatform(platform)) platform = 'twitter';
-    els.platformSelect.value = platform;
-    syncCustomSelect(els.platformSelect);
-
-    // Persona/mode: if the stored value belongs to this platform's curated set, keep it;
-    // otherwise apply the platform's AI-suggested default.
-    const platformObj = PromptEngine.platforms[platform];
-    const allowedPersonas = new Set(platformObj.personas);
-    const allowedModes    = new Set(platformObj.modes);
-
-    const personaCandidate = allowedPersonas.has(settings.defaultPersona) ? settings.defaultPersona : platformObj.defaultPersona;
-    const modeCandidate    = allowedModes.has(settings.defaultMode)       ? settings.defaultMode    : platformObj.defaultMode;
-
-    userOverrides.persona = personaCandidate !== platformObj.defaultPersona;
-    userOverrides.mode    = modeCandidate    !== platformObj.defaultMode;
-
-    rebuildPersonaDropdown(platform, personaCandidate);
-    rebuildModeDropdown(platform, modeCandidate);
-
-    els.personaAutoBadge.classList.toggle('hidden', userOverrides.persona);
-    els.modeAutoBadge.classList.toggle('hidden', userOverrides.mode);
-
-    // API key warning
-    const activeKey = getActiveApiKey(settings);
-    if (activeKey) els.apiWarning.classList.add('hidden');
-    else els.apiWarning.classList.remove('hidden');
+    return new Promise(resolve => {
+      chrome.runtime.sendMessage({ action: 'getSettings' }, (response) => {
+        if (response && !response.error) {
+          settings = response;
+          populateCustomPrompts(response.customPrompts);
+        }
+        resolve();
+      });
+    });
   }
 
-  // Re-check settings whenever they change in another tab (options page)
+  function populateCustomPrompts(prompts = []) {
+    els.customPromptSelect.innerHTML = '';
+    if (prompts.length === 0) {
+      els.customPromptSelect.innerHTML = '<option value="">No custom prompts found</option>';
+      els.customPromptHint.textContent = 'Go to Settings to create one!';
+      return;
+    }
+    
+    prompts.forEach((p, index) => {
+      const option = document.createElement('option');
+      option.value = p.id;
+      option.textContent = p.title;
+      els.customPromptSelect.appendChild(option);
+      if (index === 0) {
+        els.customPromptHint.textContent = p.text.length > 50 ? p.text.substring(0, 50) + '...' : p.text;
+      }
+    });
+
+    if (window.refreshCustomSelect) {
+      window.refreshCustomSelect(els.customPromptSelect);
+    }
+  }
+
   if (chrome.storage && chrome.storage.onChanged) {
     chrome.storage.onChanged.addListener((changes, area) => {
       if (area === 'local' && changes.settings) {
@@ -226,7 +127,6 @@ document.addEventListener('DOMContentLoaded', async () => {
   }
 
   function setupEventListeners() {
-    // Source tabs
     els.sourceTabs.forEach(tab => {
       tab.addEventListener('click', () => {
         els.sourceTabs.forEach(t => t.classList.remove('active'));
@@ -236,24 +136,33 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     });
 
-    // Extract current page
+    els.editPromptsLink.addEventListener('click', (e) => {
+      e.preventDefault();
+      chrome.runtime.openOptionsPage();
+    });
+
+    els.sendChatBtn.addEventListener('click', handleChat);
+    els.chatInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') handleChat();
+    });
+
+    els.customPromptSelect.addEventListener('change', () => {
+      const prompts = settings.customPrompts || [];
+      const selected = prompts.find(x => x.id === els.customPromptSelect.value);
+      if (selected) {
+        els.customPromptHint.textContent = selected.text.length > 50 ? selected.text.substring(0, 50) + '...' : selected.text;
+      }
+    });
+
     els.extractBtn.addEventListener('click', extractCurrentPage);
-
-    // Fetch URL
     els.fetchUrlBtn.addEventListener('click', fetchUrlContent);
-
-    // Use paste
     els.usePasteBtn.addEventListener('click', () => {
       const text = els.pasteInput.value.trim();
-      if (!text) {
-        showToast('Please paste some content first', 'error');
-        return;
-      }
+      if (!text) return;
       currentPageData = {
         title: 'Pasted Content',
-        url: 'manual-input',
         content: text,
-        wordCount: text.split(/\s+/).filter(w => w.length > 0).length,
+        url: '',
         domain: 'manual',
         description: '',
         headings: []
@@ -262,43 +171,23 @@ document.addEventListener('DOMContentLoaded', async () => {
       showToast('Content loaded from paste');
     });
 
-    // Advanced toggle
-    els.advancedToggle.addEventListener('click', () => {
-      els.advancedPanel.classList.toggle('hidden');
-      const isHidden = els.advancedPanel.classList.contains('hidden');
-      els.advancedToggle.textContent = isHidden ? '[ + ] Advanced Options' : '[ - ] Hide Advanced Options';
+    // Dynamic webpage updates
+    chrome.tabs.onActivated.addListener(() => {
+      if (document.getElementById('currentSource').classList.contains('active')) {
+        extractCurrentPage(true);
+      }
     });
 
-    // Temperature slider
-    els.tempSlider.addEventListener('input', (e) => {
-      els.tempValue.textContent = e.target.value;
+    chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+      if (changeInfo.status === 'complete' && tab.active) {
+        if (document.getElementById('currentSource').classList.contains('active')) {
+          extractCurrentPage(true);
+        }
+      }
     });
 
-    // Platform change → reset overrides (unless user already overrode) and re-suggest
-    els.platformSelect.addEventListener('change', () => {
-      userOverrides.persona = false;
-      userOverrides.mode = false;
-      applyAutoSuggestion(els.platformSelect.value);
-    });
-
-    // Persona / Mode manual changes → mark as user override and hide the badge
-    els.personaSelect.addEventListener('change', () => {
-      const platform = PromptEngine.platforms[els.platformSelect.value];
-      userOverrides.persona = els.personaSelect.value !== platform.defaultPersona;
-      els.personaAutoBadge.classList.toggle('hidden', userOverrides.persona);
-      updatePersonaHint();
-    });
-    els.modeSelect.addEventListener('change', () => {
-      const platform = PromptEngine.platforms[els.platformSelect.value];
-      userOverrides.mode = els.modeSelect.value !== platform.defaultMode;
-      els.modeAutoBadge.classList.toggle('hidden', userOverrides.mode);
-      updateModeHint();
-    });
-
-    // Generate
     els.generateBtn.addEventListener('click', generateContent);
-
-    // Copy
+    
     els.copyBtn.addEventListener('click', () => {
       const text = els.generatedText.textContent;
       navigator.clipboard.writeText(text).then(() => {
@@ -306,67 +195,150 @@ document.addEventListener('DOMContentLoaded', async () => {
       });
     });
 
-    // Save
     els.saveBtn.addEventListener('click', saveCurrentContent);
-
-    // Regenerate
     els.regenerateBtn.addEventListener('click', generateContent);
 
-    // Vault
     els.vaultBtn.addEventListener('click', openVault);
     els.closeVault.addEventListener('click', () => els.vaultModal.classList.add('hidden'));
     els.vaultModal.querySelector('.modal-overlay').addEventListener('click', () => {
       els.vaultModal.classList.add('hidden');
     });
 
-    // Settings
     els.settingsBtn.addEventListener('click', () => {
       chrome.runtime.openOptionsPage();
     });
   }
 
-  async function extractCurrentPage() {
+  async function handleChat() {
+    const query = els.chatInput.value.trim();
+    if (!query) return;
+
+    if (!currentPageData) {
+      showToast('Please extract page content first!', 'error');
+      return;
+    }
+
+    els.chatbotResponse.classList.remove('hidden');
+    els.chatbotResponse.innerHTML = '<span class="spinner" style="width:12px;height:12px;display:inline-block;border-width:2px;margin-right:8px;vertical-align:middle;"></span> Thinking...';
+    els.chatbotResponse.style.color = 'var(--text)';
+    els.chatInput.value = '';
+    
+    const mascot = document.querySelector('.scientist-svg');
+    if (mascot) {
+      mascot.style.transform = 'scale(1.05)';
+      setTimeout(() => mascot.style.transform = 'scale(1)', 200);
+    }
+
+    const config = {
+      isChatBot: true,
+      query: query
+    };
+
+    const systemPrompt = PromptEngine.buildSystemPrompt(config);
+    const userPrompt = PromptEngine.buildUserPrompt(currentPageData, config);
+
+    try {
+      const response = await new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage({
+          action: 'generateContent',
+          data: { systemPrompt, userPrompt }
+        }, (res) => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+          } else if (res && res.error) {
+            reject(new Error(res.error));
+          } else {
+            resolve(res);
+          }
+        });
+      });
+      
+      els.chatbotResponse.innerHTML = response.content.replace(/\n/g, '<br>');
+    } catch (err) {
+      els.chatbotResponse.textContent = 'Error: ' + err.message;
+      els.chatbotResponse.style.color = 'var(--danger)';
+    }
+  }
+
+  async function extractCurrentPage(silent = false) {
     try {
       els.extractBtn.disabled = true;
       els.extractBtn.innerHTML = '<span class="spinner"></span> Extracting...';
 
       const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
       if (!tab || !tab.id) {
-        showToast('No active tab found', 'error');
+        if (silent !== true) showToast('No active tab found', 'error');
         return;
       }
 
       if (!/^https?:\/\//i.test(tab.url || '')) {
-        showToast('Open a regular webpage first, then extract content.', 'error');
+        if (silent !== true) showToast('Open a regular webpage first, then extract content.', 'error');
         return;
       }
 
-      // Inject content script if needed
+      let response = null;
       try {
         await chrome.scripting.executeScript({
           target: { tabId: tab.id },
           files: ['content.js']
         });
+        
+        const results = await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: () => {
+            return typeof window.__vibeExtractContent === 'function' ? window.__vibeExtractContent() : null;
+          }
+        });
+        response = results[0]?.result;
       } catch (e) {
-        console.warn('Content script injection warning:', e);
+        console.warn('Content script execution warning:', e);
       }
 
-      // Get content
-      const response = await chrome.tabs.sendMessage(tab.id, { action: 'getPageContent' });
-
       if (response && response.content) {
+        if (!currentPageData || currentPageData.url !== response.url) {
+          resetUIState();
+        }
         currentPageData = response;
         updateSourceDisplay();
-        showToast(`Extracted ${response.wordCount} words from ${response.domain}`);
+        if (silent !== true) showToast(`Extracted ${response.wordCount} words from ${response.domain}`);
       } else {
-        showToast('Could not extract content from this page', 'error');
+        if (silent !== true) showToast('Could not extract content from this page', 'error');
       }
     } catch (error) {
       console.error('Extraction error:', error);
-      showToast('Extraction failed. Try refreshing the page.', 'error');
+      if (silent !== true) showToast('Extraction failed. Try refreshing the page.', 'error');
     } finally {
       els.extractBtn.disabled = false;
       els.extractBtn.textContent = `Extract Page Content`;
+    }
+  }
+
+  function resetUIState() {
+    // 1. Reset Chatbot
+    els.chatbotResponse.innerHTML = '';
+    els.chatbotResponse.classList.add('hidden');
+    els.chatInput.value = '';
+
+    // 2. Reset Content Output
+    els.outputContent.classList.add('hidden');
+    els.outputEmpty.classList.remove('hidden');
+    els.generatedText.textContent = '';
+    els.outputWordCount.textContent = '0 words';
+    els.outputCharCount.textContent = '0 chars';
+    generatedContent = '';
+    updateHumanScore(0);
+
+    // 3. Reset Sliders
+    els.humanizationSlider.value = "50";
+    els.toneSlider.value = "50";
+    els.lengthSlider.value = "50";
+
+    // 4. Reset Custom Prompt
+    if (els.customPromptSelect.options.length > 0) {
+      els.customPromptSelect.selectedIndex = 0;
+    }
+    if (window.refreshCustomSelect) {
+      window.refreshCustomSelect(els.customPromptSelect);
     }
   }
 
@@ -412,21 +384,26 @@ document.addEventListener('DOMContentLoaded', async () => {
       els.fetchUrlBtn.disabled = true;
       els.fetchUrlBtn.textContent = 'Fetching...';
 
-      // Try to open in new tab and extract
       tab = await chrome.tabs.create({ url, active: false });
-
-      // Wait for load
       await waitForTabLoad(tab.id);
 
-      // Inject and extract
+      let response = null;
       try {
         await chrome.scripting.executeScript({
           target: { tabId: tab.id },
           files: ['content.js']
         });
-      } catch (e) {}
-
-      const response = await chrome.tabs.sendMessage(tab.id, { action: 'getPageContent' });
+        
+        const results = await chrome.scripting.executeScript({
+          target: { tabId: tab.id },
+          func: () => {
+            return typeof window.__vibeExtractContent === 'function' ? window.__vibeExtractContent() : null;
+          }
+        });
+        response = results[0]?.result;
+      } catch (e) {
+        console.warn('Background fetch execution warning:', e);
+      }
 
       if (response && response.content) {
         currentPageData = response;
@@ -484,14 +461,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       return;
     }
 
-    const persona = els.personaSelect.value;
-    const platform = els.platformSelect.value;
-    const mode = els.modeSelect.value;
-    const custom = els.customInstructions.value.trim();
-    const batchCount = parseInt(els.batchSelect.value);
-
     try {
-      // UI loading state
       els.generateBtn.disabled = true;
       els.generateBtn.querySelector('.btn-text').classList.add('hidden');
       els.generateBtn.querySelector('.btn-loader').classList.remove('hidden');
@@ -499,38 +469,31 @@ document.addEventListener('DOMContentLoaded', async () => {
       els.outputContent.classList.remove('hidden');
       els.generatedText.textContent = 'Generating viral content...';
 
-      let content = '';
+      const selectedPromptId = els.customPromptSelect.value;
+      const prompts = settings.customPrompts || [];
+      const selectedPrompt = prompts.find(x => x.id === selectedPromptId);
 
-      if (batchCount > 1) {
-        // Batch generation
-        const batchPrompt = PromptEngine.buildBatchPrompt(currentPageData, mode, platform, batchCount);
-        const response = await chrome.runtime.sendMessage({
-          action: 'generateContent',
-          data: {
-            systemPrompt: PromptEngine.buildSystemPrompt(persona, platform, mode),
-            userPrompt: batchPrompt
-          }
-        });
+      const config = {
+        isChatBot: false,
+        customPromptText: selectedPrompt ? selectedPrompt.text : "Summarize this page.",
+        humanization: parseInt(els.humanizationSlider.value, 10),
+        tone: parseInt(els.toneSlider.value, 10),
+        length: parseInt(els.lengthSlider.value, 10)
+      };
 
-        if (response.error) throw new Error(response.error);
-        content = response.content;
-      } else {
-        // Single generation
-        const systemPrompt = PromptEngine.buildSystemPrompt(persona, platform, mode);
-        const userPrompt = PromptEngine.buildUserPrompt(currentPageData, mode, platform, custom);
+      const systemPrompt = PromptEngine.buildSystemPrompt(config);
+      const userPrompt = PromptEngine.buildUserPrompt(currentPageData, config);
 
-        const response = await chrome.runtime.sendMessage({
-          action: 'generateContent',
-          data: { systemPrompt, userPrompt }
-        });
+      const response = await chrome.runtime.sendMessage({
+        action: 'generateContent',
+        data: { systemPrompt, userPrompt }
+      });
 
-        if (response.error) throw new Error(response.error);
-        content = response.content;
-      }
+      if (response.error) throw new Error(response.error);
+      const content = response.content;
 
       generatedContent = content;
 
-      // Display with Hacker Decode Animation
       const originalText = content;
       const chars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()_+-=[]{}|;:,.<>?';
       let iterations = 0;
@@ -542,7 +505,6 @@ document.addEventListener('DOMContentLoaded', async () => {
           return chars[Math.floor(Math.random() * chars.length)];
         }).join('');
         
-        // Advance iterations faster for longer texts so it doesn't take forever
         iterations += Math.max(1, Math.floor(originalText.length / 15));
         
         if (iterations >= originalText.length) {
@@ -550,21 +512,17 @@ document.addEventListener('DOMContentLoaded', async () => {
           els.generatedText.textContent = originalText;
         }
       }, 30);
-      els.outputPersona.textContent = PromptEngine.personas[persona]?.name || persona;
-      els.outputPlatform.textContent = PromptEngine.platforms[platform]?.name || platform;
-      els.outputMode.textContent = PromptEngine.modes[mode]?.name || mode;
 
-      // Update counts
+
+
       const words = content.split(/\s+/).filter(w => w.length > 0).length;
       els.outputWordCount.textContent = `${words} words`;
       els.outputCharCount.textContent = `${content.length} chars`;
 
-      // Calculate human score
       const score = PromptEngine.estimateHumanScore(content);
       updateHumanScore(score);
 
-      // Auto-save if enabled
-      if (settings.autoSave) {
+      if (settings.autoSave === true) {
         await saveCurrentContent();
       }
 
@@ -602,9 +560,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     if (!generatedContent) return;
 
     const title = currentPageData?.title || 'Untitled';
-    const persona = els.personaSelect.value;
-    const platform = els.platformSelect.value;
-    const mode = els.modeSelect.value;
 
     try {
       await chrome.runtime.sendMessage({
@@ -612,9 +567,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         data: {
           title,
           content: generatedContent,
-          persona,
-          platform,
-          mode,
           sourceUrl: currentPageData?.url || '',
           sourceTitle: currentPageData?.title || ''
         }
@@ -655,24 +607,27 @@ document.addEventListener('DOMContentLoaded', async () => {
     } else {
       els.vaultList.innerHTML = vault.map(item => `
         <div class="vault-item" data-id="${item.id}">
-          <div class="vault-item-header">
-            <div class="vault-item-title">${escapeHtml(item.title || 'Untitled')}</div>
+          <div class="vault-item-topbar" style="display:flex; justify-content:space-between; align-items:center; margin-bottom: 8px; border-bottom: 1px solid rgba(255,255,255,0.05); padding-bottom: 8px;">
+            <div class="vault-item-meta" style="margin:0;">
+              <span>${new Date(item.createdAt).toLocaleDateString()}</span>
+            </div>
             <div class="vault-item-actions">
               <button class="vault-item-btn copy-vault text-btn-small" data-id="${item.id}" title="Copy">Copy</button>
-              <button class="vault-item-btn load-vault text-btn-small" data-id="${item.id}" title="Load">Load</button>
               <button class="vault-item-btn delete delete-vault text-btn-small" data-id="${item.id}" title="Delete">Delete</button>
             </div>
           </div>
-          <div class="vault-item-meta">
-            <span>${PromptEngine.personas[item.persona]?.name || item.persona}</span>
-            <span>${PromptEngine.platforms[item.platform]?.name || item.platform}</span>
-            <span>${new Date(item.createdAt).toLocaleDateString()}</span>
+          <div class="vault-item-source" style="margin-bottom: 10px; font-size: 0.75rem;">
+            ${item.sourceUrl 
+              ? `<a href="${item.sourceUrl}" target="_blank" style="display:inline-flex; align-items:center; background:rgba(255,255,255,0.06); padding:4px 10px; border-radius:14px; color:#3B82F6; text-decoration:none; max-width:100%; box-sizing:border-box; border:1px solid rgba(255,255,255,0.1); transition:all 0.2s ease;" onmouseover="this.style.background='rgba(255,255,255,0.12)'; this.style.borderColor='#10B981'; this.style.color='#10B981';" onmouseout="this.style.background='rgba(255,255,255,0.06)'; this.style.borderColor='rgba(255,255,255,0.1)'; this.style.color='#3B82F6';">
+                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px; flex-shrink:0; opacity:0.7;"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"></path><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"></path></svg>
+                   <span style="overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${escapeHtml(item.sourceUrl)}</span>
+                 </a>` 
+              : `<span style="display:inline-flex; align-items:center; background:rgba(255,255,255,0.04); padding:4px 10px; border-radius:14px; color:var(--text-muted);"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="margin-right:6px; flex-shrink:0;"><path d="M12 20h9"></path><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>Manual Input</span>`}
           </div>
-          <div class="vault-item-preview">${escapeHtml(item.content.substring(0, 120))}...</div>
+          <div class="vault-item-preview" style="font-size: 0.85rem; color: var(--text-primary);">${escapeHtml(item.content.substring(0, 100))}...</div>
         </div>
       `).join('');
 
-      // Add event listeners to vault items
       els.vaultList.querySelectorAll('.copy-vault').forEach(btn => {
         btn.addEventListener('click', async (e) => {
           e.stopPropagation();
@@ -684,32 +639,7 @@ document.addEventListener('DOMContentLoaded', async () => {
         });
       });
 
-      els.vaultList.querySelectorAll('.load-vault').forEach(btn => {
-        btn.addEventListener('click', async (e) => {
-          e.stopPropagation();
-          const item = vault.find(v => v.id === btn.dataset.id);
-          if (item) {
-            generatedContent = item.content;
-            els.generatedText.textContent = item.content;
-            els.outputPersona.textContent = PromptEngine.personas[item.persona]?.name || item.persona;
-            els.outputPlatform.textContent = PromptEngine.platforms[item.platform]?.name || item.platform;
-            els.outputMode.textContent = PromptEngine.modes[item.mode]?.name || item.mode;
 
-            const words = item.content.split(/\s+/).filter(w => w.length > 0).length;
-            els.outputWordCount.textContent = `${words} words`;
-            els.outputCharCount.textContent = `${item.content.length} chars`;
-
-            const score = PromptEngine.estimateHumanScore(item.content);
-            updateHumanScore(score);
-
-            els.outputEmpty.classList.add('hidden');
-            els.outputContent.classList.remove('hidden');
-            els.vaultModal.classList.add('hidden');
-
-            showToast('Loaded from vault');
-          }
-        });
-      });
 
       els.vaultList.querySelectorAll('.delete-vault').forEach(btn => {
         btn.addEventListener('click', async (e) => {

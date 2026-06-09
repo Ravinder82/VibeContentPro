@@ -1,0 +1,21 @@
+<!DOCTYPE html>
+<html>
+<body>
+  <div id="test">Hello World</div>
+  <script>
+    const el = document.getElementById('test');
+    
+    // Test 1: visible
+    console.log("Visible innerText: '" + el.innerText + "'");
+    
+    // Test 2: visibility hidden
+    el.style.visibility = 'hidden';
+    console.log("Visibility hidden innerText: '" + el.innerText + "'");
+    
+    // Test 3: opacity 0
+    el.style.visibility = 'visible';
+    el.style.opacity = '0';
+    console.log("Opacity 0 innerText: '" + el.innerText + "'");
+  </script>
+</body>
+</html>

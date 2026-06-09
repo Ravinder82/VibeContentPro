@@ -19,11 +19,14 @@ document.addEventListener('DOMContentLoaded', async () => {
     testConnectionBtn:        document.getElementById('testConnectionBtn'),
     connectionStatusIndicator:document.getElementById('connectionStatusIndicator'),
     connectionStatusText:     document.getElementById('connectionStatusText'),
-    defaultPersona:           document.getElementById('defaultPersona'),
-    defaultPlatform:          document.getElementById('defaultPlatform'),
-    defaultMode:              document.getElementById('defaultMode'),
-    defaultTemp:              document.getElementById('defaultTemp'),
-    defaultTempValue:         document.getElementById('defaultTempValue'),
+    promptsList:              document.getElementById('promptsList'),
+    addPromptBtn:             document.getElementById('addPromptBtn'),
+    promptEditor:             document.getElementById('promptEditor'),
+    promptTitleInput:         document.getElementById('promptTitleInput'),
+    promptTextInput:          document.getElementById('promptTextInput'),
+    savePromptBtn:            document.getElementById('savePromptBtn'),
+    cancelPromptBtn:          document.getElementById('cancelPromptBtn'),
+
     autoSave:                 document.getElementById('autoSave'),
     clearVaultBtn:            document.getElementById('clearVaultBtn'),
     resetSettingsBtn:         document.getElementById('resetSettingsBtn'),
@@ -108,14 +111,11 @@ document.addEventListener('DOMContentLoaded', async () => {
         openrouter: { url: DEFAULT_URLS.openrouter, key: '', model: 'google/gemini-2.0-flash-exp:free' },
         nvidia:     { url: DEFAULT_URLS.nvidia,     key: '', model: 'meta/llama-3.3-70b-instruct' }
       },
-      // Persona/mode are auto-suggested per platform in the side panel;
-      // these fields exist only to remember a user-level override if set.
-      defaultPersona: '',
-      defaultPlatform: 'twitter',
-      defaultMode: '',
-      autoSave: true,
+      autoSave: false,
       language: 'en',
-      temperature: 0.85
+      customPrompts: [
+        { id: 'default-1', title: 'Viral Twitter Thread', text: 'Write a highly engaging, viral 5-part Twitter thread about the source content. Use emojis, short sentences, and a strong hook in the first tweet.' }
+      ]
     };
   }
 
@@ -390,9 +390,52 @@ document.addEventListener('DOMContentLoaded', async () => {
     els.toggleKeyVisibility.textContent = isPassword ? 'Hide' : 'Show';
   });
 
-  // Temperature slider
-  els.defaultTemp.addEventListener('input', (e) => {
-    els.defaultTempValue.textContent = e.target.value;
+
+
+  // Custom Prompts
+  let editingPromptId = null;
+
+  els.addPromptBtn.addEventListener('click', () => {
+    editingPromptId = null;
+    els.promptTitleInput.value = '';
+    els.promptTextInput.value = '';
+    els.promptEditor.classList.remove('hidden');
+    els.addPromptBtn.classList.add('hidden');
+  });
+
+  els.cancelPromptBtn.addEventListener('click', () => {
+    els.promptEditor.classList.add('hidden');
+    els.addPromptBtn.classList.remove('hidden');
+  });
+
+  els.savePromptBtn.addEventListener('click', () => {
+    const title = els.promptTitleInput.value.trim();
+    const text = els.promptTextInput.value.trim();
+    if (!title || !text) {
+      showStatus('Title and Instructions are required.', 'error');
+      return;
+    }
+    
+    if (!currentSettings.customPrompts) currentSettings.customPrompts = [];
+    
+    if (editingPromptId) {
+      const p = currentSettings.customPrompts.find(x => x.id === editingPromptId);
+      if (p) {
+        p.title = title;
+        p.text = text;
+      }
+    } else {
+      currentSettings.customPrompts.push({
+        id: 'prompt_' + Date.now(),
+        title,
+        text
+      });
+    }
+    
+    els.promptEditor.classList.add('hidden');
+    els.addPromptBtn.classList.remove('hidden');
+    saveSettings();
+    renderPromptsList();
   });
 
   // Save button
@@ -459,15 +502,68 @@ document.addEventListener('DOMContentLoaded', async () => {
   });
 
   // ─── Core Functions ────────────────────────────────────────────────────────
+  function renderPromptsList() {
+    els.promptsList.innerHTML = '';
+    const prompts = currentSettings.customPrompts || [];
+    
+    if (prompts.length === 0) {
+      els.promptsList.innerHTML = '<p style="color: var(--text-light); font-size: 13px;">No custom prompts yet. Create one!</p>';
+      return;
+    }
+
+    prompts.forEach(p => {
+      const div = document.createElement('div');
+      div.style.cssText = 'display: flex; justify-content: space-between; align-items: center; padding: 10px; background: rgba(255,255,255,0.03); border-radius: 6px; border: 1px solid var(--border);';
+      
+      div.innerHTML = `
+        <div style="flex: 1; overflow: hidden; margin-right: 10px;">
+          <div style="font-weight: 500; font-size: 14px; margin-bottom: 4px;">${escapeHtml(p.title)}</div>
+          <div style="font-size: 12px; color: var(--text-light); white-space: nowrap; overflow: hidden; text-overflow: ellipsis;">${escapeHtml(p.text)}</div>
+        </div>
+        <div style="display: flex; gap: 6px; flex-shrink: 0;">
+          <button class="edit-btn save-btn secondary" style="padding: 4px 8px; font-size: 11px;" data-id="${p.id}">Edit</button>
+          <button class="delete-btn danger-btn" style="padding: 4px 8px; font-size: 11px;" data-id="${p.id}">Delete</button>
+        </div>
+      `;
+      els.promptsList.appendChild(div);
+    });
+
+    els.promptsList.querySelectorAll('.edit-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-id');
+        const p = currentSettings.customPrompts.find(x => x.id === id);
+        if (p) {
+          editingPromptId = id;
+          els.promptTitleInput.value = p.title;
+          els.promptTextInput.value = p.text;
+          els.promptEditor.classList.remove('hidden');
+          els.addPromptBtn.classList.add('hidden');
+        }
+      });
+    });
+
+    els.promptsList.querySelectorAll('.delete-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const id = btn.getAttribute('data-id');
+        currentSettings.customPrompts = currentSettings.customPrompts.filter(x => x.id !== id);
+        saveSettings();
+        renderPromptsList();
+      });
+    });
+  }
+
+  function escapeHtml(text) {
+    const div = document.createElement('div');
+    div.textContent = text;
+    return div.innerHTML;
+  }
+
   function applySettingsToUI() {
     els.providerSelect.value  = currentSettings.provider || 'gemini';
     updateUIForProvider(els.providerSelect.value);
-    els.defaultPersona.value  = currentSettings.defaultPersona  || '';
-    els.defaultPlatform.value = currentSettings.defaultPlatform || 'twitter';
-    els.defaultMode.value     = currentSettings.defaultMode     || '';
-    els.defaultTemp.value     = currentSettings.temperature     || 0.85;
-    els.defaultTempValue.textContent = currentSettings.temperature || 0.85;
-    els.autoSave.checked      = currentSettings.autoSave !== false;
+
+    els.autoSave.checked      = currentSettings.autoSave === true;
+    renderPromptsList();
   }
 
   async function loadSettings() {
@@ -504,10 +600,7 @@ document.addEventListener('DOMContentLoaded', async () => {
       currentSettings.providersConfig[provider].model = getCurrentModel();
       currentSettings.providersConfig[provider].key   = els.apiKeyInput.value.trim();
 
-      currentSettings.defaultPersona  = els.defaultPersona.value;
-      currentSettings.defaultPlatform = els.defaultPlatform.value;
-      currentSettings.defaultMode     = els.defaultMode.value;
-      currentSettings.temperature     = parseFloat(els.defaultTemp.value);
+
       currentSettings.autoSave        = els.autoSave.checked;
 
       // chrome.storage.local only — keys never sync, never leave the device.

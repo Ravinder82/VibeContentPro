@@ -77,32 +77,31 @@
         </div>
       </section>
 
-      <!-- Defaults -->
+      <!-- Custom Prompts Library -->
       <section class="settings-section">
-        <h2>Default Preferences</h2>
-        <p class="section-desc">Persona and Mode are auto-suggested by the AI for the platform you pick. Override them anytime from the side panel.</p>
-
-        <div class="form-row">
-          <div class="form-group">
-            <label for="defaultPlatform">Default Platform</label>
-            <select id="defaultPlatform" class="select-input">
-              <option value="twitter">Article</option>
-              <option value="tiktok">TikTok</option>
-              <option value="youtube">YouTube Shorts</option>
-              <option value="slideshows">Slideshows</option>
-            </select>
-          </div>
-
-          <div class="form-group">
-            <label for="defaultTemp">Default Temperature</label>
-            <input type="range" id="defaultTemp" min="0.5" max="1.0" step="0.05" value="0.85" class="range-input">
-            <span id="defaultTempValue" class="range-value">0.85</span>
-          </div>
+        <h2>Custom Prompts Library <span class="premium-badge">BYOP</span></h2>
+        <p class="section-desc">Create your own reusable prompts for generating content.</p>
+        
+        <div class="prompts-list" id="promptsList" style="display: flex; flex-direction: column; gap: 10px; margin-bottom: 15px;">
+          <!-- Prompts injected here -->
         </div>
 
-        <!-- Hidden inputs preserve user-level overrides if explicitly set in the side panel -->
-        <input type="hidden" id="defaultPersona" value="">
-        <input type="hidden" id="defaultMode" value="">
+        <button id="addPromptBtn" class="save-btn secondary" style="background: rgba(255,255,255,0.05);">+ Add New Prompt</button>
+
+        <div id="promptEditor" class="prompt-editor hidden" style="margin-top: 15px; background: rgba(255,255,255,0.03); padding: 20px; border-radius: 12px; border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
+          <div class="form-group" style="margin-bottom: 15px;">
+            <label style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-light); margin-bottom: 6px; display: block;">Prompt Title</label>
+            <input type="text" id="promptTitleInput" class="text-input" placeholder="e.g. Sarcastic Tech Tweet" style="width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 12px; color: var(--text); font-size: 14px;">
+          </div>
+          <div class="form-group" style="margin-bottom: 20px;">
+            <label style="font-size: 11px; text-transform: uppercase; letter-spacing: 1px; color: var(--text-light); margin-bottom: 6px; display: block;">Prompt Instructions</label>
+            <textarea id="promptTextInput" class="text-area" rows="5" placeholder="e.g. Write a sarcastic tweet about the following content..." style="width: 100%; box-sizing: border-box; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 12px; color: var(--text); font-size: 14px; resize: vertical;"></textarea>
+          </div>
+          <div style="display: flex; gap: 10px;">
+            <button id="savePromptBtn" class="save-btn" style="flex: 1;">Save Prompt</button>
+            <button id="cancelPromptBtn" class="danger-btn secondary" style="flex: 1;">Cancel</button>
+          </div>
+        </div>
       </section>
 
       <!-- Behavior -->
@@ -136,11 +135,18 @@
       </section>
     </main>
 
-    <footer class="settings-footer">
-      <button id="saveBtn" class="save-btn">
-        Save Settings
-      </button>
-      <div id="saveStatus" class="save-status"></div>
+    <footer class="settings-footer" style="display: flex; flex-direction: column; align-items: stretch; gap: 15px;">
+      <div style="display: flex; justify-content: flex-end; align-items: center; gap: 15px;">
+        <div id="saveStatus" class="save-status"></div>
+        <button id="saveBtn" class="save-btn">
+          Save Settings
+        </button>
+      </div>
+      <div style="font-size: 12px; color: var(--text-muted); text-align: center; border-top: 1px solid var(--border-glass); padding-top: 15px;">
+        <a href="https://ravinderpoonia.github.io/VibeContentPro/PRIVACY_POLICY" target="_blank" style="color: var(--primary); text-decoration: none;">Privacy Policy</a> • 
+        <a href="https://ravinderpoonia.github.io/VibeContentPro/" target="_blank" style="color: var(--primary); text-decoration: none;">Documentation</a> • 
+        <a href="https://github.com/ravinderpoonia/VibeContentPro" target="_blank" style="color: var(--primary); text-decoration: none;">GitHub</a>
+      </div>
     </footer>
   </div>
 

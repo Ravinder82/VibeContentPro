@@ -4,26 +4,8 @@
 (function() {
   'use strict';
 
-  // Prevent duplicate injection
-  if (window.__shadowEngineInjected) return;
-  window.__shadowEngineInjected = true;
-
-  // Listen for extraction requests from background
-  chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
-    if (request.action === 'getPageContent') {
-      const data = extractContent();
-      sendResponse(data);
-      return true;
-    }
-
-    if (request.action === 'highlightText') {
-      highlightText(request.text);
-      sendResponse({ success: true });
-      return true;
-    }
-  });
-
-  function extractContent() {
+  // Expose functions globally in the isolated world so sidepanel can execute them directly
+  window.__vibeExtractContent = function() {
     const getMeta = (name) => {
       const selectors = [
         `meta[name="${name}"]`,
@@ -52,7 +34,7 @@
         const elements = document.querySelectorAll(selector);
         elements.forEach(el => {
           const text = el.innerText || '';
-          if (text.length > 300) {
+          if (text.trim().length > 50) {
             candidates.push({
               element: el,
               text: text,
@@ -70,7 +52,7 @@
 
         allElements.forEach(el => {
           const text = el.innerText || '';
-          if (text.length > maxText && text.length > 500) {
+          if (text.length > maxText && text.trim().length > 50) {
             maxText = text.length;
             bestElement = el;
           }
@@ -121,8 +103,25 @@
       clone.querySelectorAll(sel).forEach(el => el.remove());
     });
 
+    // We must append the clone to the document to accurately read innerText,
+    // because innerText relies on CSS layout engine which ignores detached nodes.
+    const wrapper = document.createElement('div');
+    wrapper.style.position = 'absolute';
+    wrapper.style.left = '-99999px';
+    wrapper.style.top = '-99999px';
+    wrapper.style.width = '1000px';
+    wrapper.style.height = 'auto';
+    wrapper.style.pointerEvents = 'none';
+    wrapper.style.overflow = 'hidden';
+    wrapper.appendChild(clone);
+    document.body.appendChild(wrapper);
+    
+    let rawText = clone.innerText || clone.textContent || '';
+    
+    document.body.removeChild(wrapper);
+
     // Clean text
-    let cleanText = clone.innerText
+    let cleanText = rawText
       .replace(/\s+/g, ' ')
       .replace(/\n\s*\n/g, '\n')
       .trim();
@@ -159,9 +158,9 @@
       favicon: getMeta('image') || '',
       siteName: getMeta('site_name') || window.location.hostname
     };
-  }
+  };
 
-  function highlightText(text) {
+  window.__vibeHighlightText = function(text) {
     if (!text || text.length < 10) return;
 
     const walker = document.createTreeWalker(
@@ -205,15 +204,6 @@
         parent.removeChild(node);
       }
     });
-  }
-
-  // Auto-extract on load for side panel
-  setTimeout(() => {
-    const data = extractContent();
-    chrome.runtime.sendMessage({
-      action: 'pageContentReady',
-      data: data
-    }).catch(() => {});
-  }, 1500);
+  };
 
 })();
