@@ -25,7 +25,7 @@
   ],
   "web_accessible_resources": [
     {
-      "resources": ["content.js"],
+      "resources": ["content.js", "lib/news-feed.js"],
       "matches": ["https://*/*"]
     }
   ],

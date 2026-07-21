@@ -43,6 +43,7 @@
         <button class="source-tab active" data-source="current">Current Page</button>
         <button class="source-tab" data-source="url">URL Link</button>
         <button class="source-tab" data-source="paste">Paste Text</button>
+        <button class="source-tab" data-source="news">Trending News</button>
       </div>
 
       <div class="source-content">
@@ -63,6 +64,24 @@
         <div id="pasteSource" class="source-panel">
           <textarea id="pasteInput" class="text-area" placeholder="Paste article text, blog post, or any content here..."></textarea>
           <button id="usePasteBtn" class="primary-btn">Use This Content</button>
+        </div>
+
+        <div id="newsSource" class="source-panel">
+          <div class="news-topic-selector">
+            <select id="newsTopicSelect" class="select-input">
+              <option value="TOP_STORIES">Top Stories</option>
+              <option value="TECHNOLOGY">Technology</option>
+              <option value="BUSINESS">Business</option>
+              <option value="TRENDING_SEARCHES">Trending Searches</option>
+            </select>
+          </div>
+          <div id="newsSearch" class="news-search hidden">
+            <input type="text" id="newsSearchInput" class="text-input" placeholder="Search news topics...">
+            <button id="newsSearchBtn" class="primary-btn">Search News</button>
+          </div>
+          <div id="newsFeed" class="news-feed">
+            <div class="news-loading">Click "Trending News" to load headlines...</div>
+          </div>
         </div>
       </div>
 
@@ -106,7 +125,7 @@
             </div>
             
             <div class="chatbot-info">
-              <div style="font-size: 14px; font-weight: 700; background: linear-gradient(to right, var(--primary), var(--accent)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 0.5px;">PAGE EXPERT BOT</div>
+              <div style="font-size: 14px; font-weight: 700; background: linear-gradient(to right, var(--primary), var(--accent)); -webkit-background-clip: text; background-clip: text; -webkit-text-fill-color: transparent; letter-spacing: 0.5px;">PAGE EXPERT BOT</div>
               <div class="tips-carousel" id="chatbotTips" style="font-size: 12px; color: var(--text-light); font-style: italic; margin-top: 4px; animation: pulseOpacity 2s infinite alternate;">
                 Try: "Summarize this page"
               </div>
@@ -152,46 +171,44 @@
         </span>
       </button>
 
-      <!-- Dynamic Sliders -->
-      <div class="sliders-container" style="margin-top: 20px; background: rgba(255,255,255,0.03); border: 1px solid rgba(255,255,255,0.08); border-radius: 16px; padding: 20px 15px; box-shadow: 0 4px 20px rgba(0,0,0,0.2);">
-        <div style="font-size: 10px; color: var(--text-light); font-weight: 700; text-transform: uppercase; margin-bottom: 20px; letter-spacing: 1.5px; text-align: center; opacity: 0.7;">Vibe Control</div>
-        
-        <div class="slider-group" style="margin-bottom: 24px;">
-          <div style="font-size: 11px; color: var(--text); font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; text-align: center; margin-bottom: 12px; text-shadow: 0 0 10px rgba(255,255,255,0.1);">
-            Humanization
-          </div>
-          <div style="position: relative; padding: 0 10px;">
-            <input type="range" id="humanizationSlider" class="genz-slider slider-humanization" min="0" max="100" value="70">
-          </div>
-          <div style="display: flex; justify-content: space-between; font-size: 9px; color: var(--text-light); margin-top: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; padding: 0 5px;">
-            <span>Standard</span>
-            <span>Unhinged</span>
-          </div>
+      <!-- Multi-Agent Engine Selector -->
+      <div class="agent-selector-container">
+        <div class="agent-selector-header">
+          <span class="agent-section-title">AI Content Agents</span>
+          <span id="autoAgentBadge" class="auto-agent-badge hidden">✨ AI Auto-Selected</span>
         </div>
 
-        <div class="slider-group" style="margin-bottom: 24px;">
-          <div style="font-size: 11px; color: var(--text); font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; text-align: center; margin-bottom: 12px; text-shadow: 0 0 10px rgba(255,255,255,0.1);">
-            Tone
+        <div class="agent-grid">
+          <div class="agent-card active" data-agent="tweet_synthesizer">
+            <div class="agent-icon">🤖</div>
+            <div class="agent-details">
+              <div class="agent-name">Tweet Synthesizer</div>
+              <div class="agent-desc">Article to viral post (100–150 words)</div>
+            </div>
           </div>
-          <div style="position: relative; padding: 0 10px;">
-            <input type="range" id="toneSlider" class="genz-slider slider-tone" min="0" max="100" value="50">
-          </div>
-          <div style="display: flex; justify-content: space-between; font-size: 9px; color: var(--text-light); margin-top: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; padding: 0 5px;">
-            <span>Serious</span>
-            <span>Funny</span>
-          </div>
-        </div>
 
-        <div class="slider-group">
-          <div style="font-size: 11px; color: var(--text); font-weight: 700; text-transform: uppercase; letter-spacing: 1.5px; text-align: center; margin-bottom: 12px; text-shadow: 0 0 10px rgba(255,255,255,0.1);">
-            Length
+          <div class="agent-card" data-agent="reply_guy">
+            <div class="agent-icon">💬</div>
+            <div class="agent-details">
+              <div class="agent-name">Reply & Quote Guy</div>
+              <div class="agent-desc">Witty tweet replies & quote-takes</div>
+            </div>
           </div>
-          <div style="position: relative; padding: 0 10px;">
-            <input type="range" id="lengthSlider" class="genz-slider slider-length" min="0" max="100" value="50">
+
+          <div class="agent-card" data-agent="carousel_5slide">
+            <div class="agent-icon">🖼️</div>
+            <div class="agent-details">
+              <div class="agent-name">5-Slide Carousel</div>
+              <div class="agent-desc">Visual carousel breakdown</div>
+            </div>
           </div>
-          <div style="display: flex; justify-content: space-between; font-size: 9px; color: var(--text-light); margin-top: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; padding: 0 5px;">
-            <span>Short</span>
-            <span>Long</span>
+
+          <div class="agent-card" data-agent="custom_prompt">
+            <div class="agent-icon">🔮</div>
+            <div class="agent-details">
+              <div class="agent-name">Custom Agent</div>
+              <div class="agent-desc">Use your saved custom prompts</div>
+            </div>
           </div>
         </div>
       </div>

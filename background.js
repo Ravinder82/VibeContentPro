@@ -25,8 +25,21 @@ const DEFAULT_MODELS = {
 const OPENROUTER_REFERER = 'https://vibecontent.pro';
 const OPENROUTER_APP_TITLE = 'VibeContent Pro';
 
+try {
+  importScripts('lib/news-feed.js');
+} catch (e) {
+  console.error('Failed to import news-feed.js:', e);
+}
+
 // ─── Message Router ─────────────────────────────────────────────────────────
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+  if (request.action === 'fetchTrendingNews') {
+    handleFetchTrendingNews(request.params).then(sendResponse).catch(error => {
+      sendResponse({ error: error.message });
+    });
+    return true;
+  }
+
   if (request.action === 'generateContent') {
     handleGeneration(request.data).then(sendResponse).catch(error => {
       sendResponse({ error: error.message });
@@ -529,6 +542,17 @@ async function fetchUrlContent(url) {
     };
   } catch (error) {
     throw new Error('Cannot fetch URL directly due to CORS. Open the page in a tab and use "Current Page" mode.');
+  }
+}
+
+// ─── News Feed Handler ──────────────────────────────────────────────────────
+async function handleFetchTrendingNews(params = {}) {
+  if (params.topic === 'TRENDING_SEARCHES') {
+    const trends = await fetchGoogleTrends(params);
+    return { articles: trends };
+  } else {
+    const articles = await fetchGoogleNews(params);
+    return { articles };
   }
 }
 

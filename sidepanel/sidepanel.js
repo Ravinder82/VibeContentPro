@@ -7,6 +7,7 @@ document.addEventListener('DOMContentLoaded', async () => {
   let currentPageData = null;
   let generatedContent = '';
   let settings = {};
+  let activeAgent = 'tweet_synthesizer';
 
   // DOM Elements
   const els = {
@@ -20,12 +21,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     fetchUrlBtn: document.getElementById('fetchUrlBtn'),
     pasteInput: document.getElementById('pasteInput'),
     usePasteBtn: document.getElementById('usePasteBtn'),
+    newsTopicSelect: document.getElementById('newsTopicSelect'),
+    newsSearch: document.getElementById('newsSearch'),
+    newsSearchInput: document.getElementById('newsSearchInput'),
+    newsSearchBtn: document.getElementById('newsSearchBtn'),
+    newsFeed: document.getElementById('newsFeed'),
     pageInfo: document.getElementById('pageInfo'),
     sourceStats: document.getElementById('sourceStats'),
     wordCount: document.getElementById('wordCount'),
     charCount: document.getElementById('charCount'),
     domainName: document.getElementById('domainName'),
     
+    agentCards: document.querySelectorAll('.agent-card'),
+    autoAgentBadge: document.getElementById('autoAgentBadge'),
+
     generateBtn: document.getElementById('generateBtn'),
     apiWarning: document.getElementById('apiWarning'),
     outputEmpty: document.getElementById('outputEmpty'),
@@ -37,10 +46,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     customPromptSelect: document.getElementById('customPromptSelect'),
     customPromptHint: document.getElementById('customPromptHint'),
     editPromptsLink: document.getElementById('editPromptsLink'),
-
-    humanizationSlider: document.getElementById('humanizationSlider'),
-    toneSlider: document.getElementById('toneSlider'),
-    lengthSlider: document.getElementById('lengthSlider'),
 
     copyBtn: document.getElementById('copyBtn'),
     saveBtn: document.getElementById('saveBtn'),
@@ -133,6 +138,45 @@ document.addEventListener('DOMContentLoaded', async () => {
         els.sourcePanels.forEach(p => p.classList.remove('active'));
         tab.classList.add('active');
         document.getElementById(tab.dataset.source + 'Source').classList.add('active');
+
+        if (tab.dataset.source === 'news' && !els.newsFeed.hasChildNodes() || els.newsFeed.querySelector('.news-loading')?.textContent.includes('Click')) {
+          loadTrendingNews(els.newsTopicSelect.value);
+        }
+      });
+    });
+
+    els.newsTopicSelect.addEventListener('change', () => {
+      const topic = els.newsTopicSelect.value;
+      if (topic === 'TRENDING_SEARCHES') {
+        els.newsSearch.classList.remove('hidden');
+      } else {
+        els.newsSearch.classList.add('hidden');
+      }
+      loadTrendingNews(topic);
+    });
+
+    els.newsSearchBtn.addEventListener('click', () => {
+      const query = els.newsSearchInput.value.trim();
+      if (query) {
+        loadTrendingNews('SEARCH', query);
+      }
+    });
+
+    els.newsSearchInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') {
+        const query = els.newsSearchInput.value.trim();
+        if (query) {
+          loadTrendingNews('SEARCH', query);
+        }
+      }
+    });
+
+    els.agentCards.forEach(card => {
+      card.addEventListener('click', () => {
+        els.agentCards.forEach(c => c.classList.remove('active'));
+        card.classList.add('active');
+        activeAgent = card.dataset.agent;
+        els.autoAgentBadge.classList.add('hidden');
       });
     });
 
@@ -328,12 +372,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     generatedContent = '';
     updateHumanScore(0);
 
-    // 3. Reset Sliders
-    els.humanizationSlider.value = "50";
-    els.toneSlider.value = "50";
-    els.lengthSlider.value = "50";
-
-    // 4. Reset Custom Prompt
+    // 3. Reset Custom Prompt
     if (els.customPromptSelect.options.length > 0) {
       els.customPromptSelect.selectedIndex = 0;
     }
@@ -428,6 +467,103 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
   }
 
+  // ─── News Feed Logic ────────────────────────────────────────────────────────
+  async function loadTrendingNews(topic = 'TOP_STORIES', query = '') {
+    els.newsFeed.innerHTML = '<div class="news-loading">Loading headlines...</div>';
+
+    try {
+      const response = await new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage({
+          action: 'fetchTrendingNews',
+          params: { topic, query }
+        }, (res) => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+          } else if (res && res.error) {
+            reject(new Error(res.error));
+          } else {
+            resolve(res);
+          }
+        });
+      });
+
+      const articles = response.articles || [];
+      renderNewsFeed(articles);
+    } catch (error) {
+      console.error('Failed to load news:', error);
+      els.newsFeed.innerHTML = `<div class="news-error">Failed to load news: ${error.message}</div>`;
+    }
+  }
+
+  function renderNewsFeed(articles = []) {
+    if (!articles || articles.length === 0) {
+      els.newsFeed.innerHTML = '<div class="news-empty">No articles found. Try another topic or search query.</div>';
+      return;
+    }
+
+    els.newsFeed.innerHTML = '';
+    articles.forEach(article => {
+      const card = document.createElement('div');
+      card.className = 'news-card';
+      
+      const header = document.createElement('div');
+      header.className = 'news-card-header';
+
+      const sourceBadge = document.createElement('span');
+      sourceBadge.className = article.isTrending ? 'trending-badge' : 'news-card-source';
+      sourceBadge.textContent = article.isTrending ? `🔥 ${article.source}` : article.source;
+
+      const timeSpan = document.createElement('span');
+      timeSpan.className = 'news-card-time';
+      timeSpan.textContent = article.pubDate || '';
+
+      header.appendChild(sourceBadge);
+      header.appendChild(timeSpan);
+
+      const titleEl = document.createElement('div');
+      titleEl.className = 'news-card-title';
+      titleEl.textContent = article.title;
+
+      card.appendChild(header);
+      card.appendChild(titleEl);
+
+      if (article.description) {
+        const descEl = document.createElement('div');
+        descEl.className = 'news-card-desc';
+        descEl.textContent = article.description;
+        card.appendChild(descEl);
+      }
+
+      card.addEventListener('click', () => handleArticleClick(article));
+      els.newsFeed.appendChild(card);
+    });
+  }
+
+  async function handleArticleClick(article) {
+    if (!article.link) {
+      showToast('No valid link for this article', 'error');
+      return;
+    }
+
+    showToast(`Extracting article: ${article.title.substring(0, 30)}...`);
+
+    // Use URL input and existing fetchUrlContent flow logic
+    els.urlInput.value = article.link;
+    
+    // Switch to URL source tab
+    const urlTab = Array.from(els.sourceTabs).find(t => t.dataset.source === 'url');
+    if (urlTab) urlTab.click();
+
+    // Trigger URL fetch
+    await fetchUrlContent();
+
+    // If successfully extracted, switch to Current Page view to see stats/summary
+    if (currentPageData && currentPageData.content) {
+      const currentTab = Array.from(els.sourceTabs).find(t => t.dataset.source === 'current');
+      if (currentTab) currentTab.click();
+    }
+  }
+
   function updateSourceDisplay() {
     if (!currentPageData) return;
 
@@ -447,6 +583,20 @@ document.addEventListener('DOMContentLoaded', async () => {
     els.domainName.textContent = domain;
 
     els.generateBtn.disabled = false;
+
+    // AI Context Auto Agent Detection
+    const recommendedAgent = PromptEngine.detectBestAgent(currentPageData);
+    if (recommendedAgent) {
+      activeAgent = recommendedAgent;
+      els.agentCards.forEach(c => {
+        if (c.dataset.agent === recommendedAgent) {
+          c.classList.add('active');
+        } else {
+          c.classList.remove('active');
+        }
+      });
+      els.autoAgentBadge.classList.remove('hidden');
+    }
   }
 
   async function generateContent() {
@@ -475,10 +625,8 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const config = {
         isChatBot: false,
-        customPromptText: selectedPrompt ? selectedPrompt.text : "Summarize this page.",
-        humanization: parseInt(els.humanizationSlider.value, 10),
-        tone: parseInt(els.toneSlider.value, 10),
-        length: parseInt(els.lengthSlider.value, 10)
+        agent: activeAgent,
+        customPromptText: selectedPrompt ? selectedPrompt.text : "Summarize this page."
       };
 
       const systemPrompt = PromptEngine.buildSystemPrompt(config);
