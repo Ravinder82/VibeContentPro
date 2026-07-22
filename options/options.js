@@ -79,10 +79,10 @@ document.addEventListener('DOMContentLoaded', async () => {
       { id: 'gemini-1.5-flash',      name: 'Gemini 1.5 Flash' }
     ],
     openrouter: [
-      { id: 'google/gemini-2.0-flash-exp:free',       name: '🆓 Gemini 2.0 Flash Exp' },
-      { id: 'deepseek/deepseek-r1:free',              name: '🆓 DeepSeek R1 (Reasoning)' },
+      { id: 'meta-llama/llama-3.3-70b-instruct:free', name: '🆓 Llama 3.3 70B (Recommended)' },
       { id: 'deepseek/deepseek-chat:free',            name: '🆓 DeepSeek V3 Chat' },
-      { id: 'meta-llama/llama-3.3-70b-instruct:free', name: '🆓 Llama 3.3 70B' },
+      { id: 'deepseek/deepseek-r1:free',              name: '🆓 DeepSeek R1 (Reasoning)' },
+      { id: 'google/gemini-2.0-flash-lite-preview-02-05:free', name: '🆓 Gemini 2.0 Flash Lite' },
       { id: 'mistralai/mistral-7b-instruct:free',     name: '🆓 Mistral 7B Instruct' },
       { id: 'anthropic/claude-3.5-sonnet',            name: '💰 Claude 3.5 Sonnet' },
       { id: 'openai/gpt-4o-mini',                     name: '💰 GPT-4o Mini' },
@@ -106,8 +106,8 @@ document.addEventListener('DOMContentLoaded', async () => {
       provider: 'gemini',
       providersConfig: {
         openai:     { url: DEFAULT_URLS.openai,     key: '', model: 'gpt-4o-mini' },
-        anthropic:  { url: DEFAULT_URLS.anthropic,  key: '', model: 'claude-haiku-4-5' },
-        gemini:     { url: DEFAULT_URLS.gemini,     key: '', model: 'gemini-2.5-flash' },
+        anthropic:  { url: DEFAULT_URLS.anthropic,  key: '', model: 'claude-3-5-haiku-latest' },
+        gemini:     { url: DEFAULT_URLS.gemini,     key: '', model: 'gemini-2.0-flash' },
         openrouter: { url: DEFAULT_URLS.openrouter, key: '', model: 'google/gemini-2.0-flash-exp:free' },
         nvidia:     { url: DEFAULT_URLS.nvidia,     key: '', model: 'meta/llama-3.3-70b-instruct' }
       },

@@ -15,9 +15,9 @@ const FALLBACK_URLS = {
 
 const DEFAULT_MODELS = {
   openai:     'gpt-4o-mini',
-  anthropic:  'claude-haiku-4-5',
-  gemini:     'gemini-2.5-flash',
-  openrouter: 'google/gemini-2.0-flash-exp:free',
+  anthropic:  'claude-3-5-haiku-latest',
+  gemini:     'gemini-2.0-flash',
+  openrouter: 'meta-llama/llama-3.3-70b-instruct:free',
   nvidia:     'meta/llama-3.3-70b-instruct'
 };
 
@@ -99,14 +99,30 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
 // ─── Generation Core ───────────────────────────────────────────────────────
 async function handleGeneration(data) {
   const settings = await getSettings();
-  const provider = settings.provider || 'openai';
+  let provider = settings.provider || 'gemini';
 
   // Support legacy single-key format
-  const config = settings.providersConfig
+  let config = settings.providersConfig
     ? (settings.providersConfig[provider] || {})
     : { key: settings.apiKey, model: settings.model, url: getFallbackUrl(provider) };
 
-  const apiKey = config.key;
+  let apiKey = config.key;
+
+  // If the active provider has no API key, check if another provider has one configured and auto-fallback
+  if (!apiKey && settings.providersConfig) {
+    const fallbackOrder = ['openrouter', 'nvidia', 'gemini', 'openai', 'anthropic'];
+    for (const p of fallbackOrder) {
+      if (settings.providersConfig[p]?.key) {
+        provider = p;
+        config = settings.providersConfig[p];
+        apiKey = config.key;
+        settings.provider = p;
+        saveSettings(settings).catch(() => {});
+        break;
+      }
+    }
+  }
+
   const model  = config.model || DEFAULT_MODELS[provider] || 'gpt-4o-mini';
   const url    = config.url   || getFallbackUrl(provider);
   const temperature = typeof settings.temperature === 'number' ? settings.temperature : 0.85;
@@ -175,13 +191,38 @@ async function parseErrorBody(response) {
 function extractErrorMessage(parsed, fallback) {
   if (!parsed) return fallback;
   // OpenAI / OpenRouter / NVIDIA shape
-  if (parsed.error?.message) return parsed.error.message;
+  if (parsed.error?.message) {
+    let msg = parsed.error.message;
+    if (parsed.error.metadata) {
+      const raw = parsed.error.metadata.raw;
+      const providerName = parsed.error.metadata.provider_name;
+      if (raw && typeof raw === 'string') {
+        let details = raw;
+        try {
+          if (raw.trim().startsWith('{')) {
+            const rawObj = JSON.parse(raw);
+            if (rawObj.error?.message) details = rawObj.error.message;
+          }
+        } catch (e) {}
+        if (msg === 'Provider returned error') {
+          return `OpenRouter upstream error (${providerName || 'Provider'}): ${details}`;
+        }
+        return `${msg} (${providerName || 'Provider'}: ${details})`;
+      }
+    }
+    return msg;
+  }
   // Anthropic shape
   if (parsed.error?.type && parsed.error?.message) return `${parsed.error.type}: ${parsed.error.message}`;
   // Gemini shape
   if (parsed.error?.status && parsed.error?.message) return `${parsed.error.status}: ${parsed.error.message}`;
   // NVIDIA detail
-  if (parsed.detail) return typeof parsed.detail === 'string' ? parsed.detail : JSON.stringify(parsed.detail);
+  if (parsed.detail) {
+    if (Array.isArray(parsed.detail)) {
+      return parsed.detail.map(err => err.msg ? `${err.loc?.join('.') || 'param'}: ${err.msg}` : JSON.stringify(err)).join(' | ');
+    }
+    return typeof parsed.detail === 'string' ? parsed.detail : JSON.stringify(parsed.detail);
+  }
   // Raw text body
   if (parsed.rawText) return parsed.rawText.slice(0, 300);
   return fallback;
@@ -317,7 +358,7 @@ async function fetchGemini({ url: baseUrl, apiKey, model, data, temperature }) {
   return { content };
 }
 
-async function fetchOpenRouter({ url, apiKey, model, data, temperature }) {
+async function fetchOpenRouter({ url, apiKey, model, data, temperature }, isRetry = false) {
   const response = await fetch(url, {
     method: 'POST',
     headers: {
@@ -339,7 +380,17 @@ async function fetchOpenRouter({ url, apiKey, model, data, temperature }) {
 
   if (!response.ok) {
     const parsed = await parseErrorBody(response);
-    throw new Error(extractErrorMessage(parsed, `OpenRouter API error (${response.status})`));
+    const errMsg = extractErrorMessage(parsed, `OpenRouter API error (${response.status})`);
+    
+    // If rate-limited or upstream provider error on a :free model, retry once with fallback free model
+    if (!isRetry && (response.status === 429 || errMsg.includes('ResourceExhausted') || errMsg.includes('Provider returned error') || errMsg.includes('upstream error')) && model.includes(':free')) {
+      await new Promise(resolve => setTimeout(resolve, 1000));
+      const fallbackModel = model !== 'meta-llama/llama-3.3-70b-instruct:free'
+        ? 'meta-llama/llama-3.3-70b-instruct:free'
+        : 'deepseek/deepseek-chat:free';
+      return fetchOpenRouter({ url, apiKey, model: fallbackModel, data, temperature }, true);
+    }
+    throw new Error(errMsg);
   }
 
   const result = await response.json();
@@ -504,8 +555,31 @@ function buildDefaultSettings() {
 
 async function getSettings() {
   const result = await chrome.storage.local.get(['settings']);
-  if (result.settings) return result.settings;
-  return buildDefaultSettings();
+  const defaults = buildDefaultSettings();
+  if (result.settings) {
+    const merged = {
+      ...defaults,
+      ...result.settings,
+      providersConfig: {
+        ...defaults.providersConfig,
+        ...(result.settings.providersConfig || {})
+      }
+    };
+    // Migrate legacy settings if they exist
+    if (!result.settings.providersConfig && result.settings.apiKey) {
+      const p = merged.provider || 'gemini';
+      if (merged.providersConfig[p]) {
+        merged.providersConfig[p].key = result.settings.apiKey;
+        merged.providersConfig[p].model = result.settings.model || defaults.providersConfig[p].model;
+      }
+    }
+    // Migrate deprecated or rate-limited OpenRouter model to reliable default
+    if (merged.providersConfig?.openrouter?.model === 'google/gemini-2.0-flash-exp:free') {
+      merged.providersConfig.openrouter.model = defaults.providersConfig.openrouter.model;
+    }
+    return merged;
+  }
+  return defaults;
 }
 
 async function saveSettings(settings) {

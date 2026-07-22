@@ -6,8 +6,8 @@ document.addEventListener('DOMContentLoaded', async () => {
   // State
   let currentPageData = null;
   let generatedContent = '';
+  // Selected custom prompt is managed via dropdown
   let settings = {};
-  let activeAgent = 'tweet_synthesizer';
 
   // DOM Elements
   const els = {
@@ -31,9 +31,7 @@ document.addEventListener('DOMContentLoaded', async () => {
     wordCount: document.getElementById('wordCount'),
     charCount: document.getElementById('charCount'),
     domainName: document.getElementById('domainName'),
-    
-    agentCards: document.querySelectorAll('.agent-card'),
-    autoAgentBadge: document.getElementById('autoAgentBadge'),
+
 
     generateBtn: document.getElementById('generateBtn'),
     apiWarning: document.getElementById('apiWarning'),
@@ -171,14 +169,6 @@ document.addEventListener('DOMContentLoaded', async () => {
       }
     });
 
-    els.agentCards.forEach(card => {
-      card.addEventListener('click', () => {
-        els.agentCards.forEach(c => c.classList.remove('active'));
-        card.classList.add('active');
-        activeAgent = card.dataset.agent;
-        els.autoAgentBadge.classList.add('hidden');
-      });
-    });
 
     els.editPromptsLink.addEventListener('click', (e) => {
       e.preventDefault();
@@ -583,20 +573,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     els.domainName.textContent = domain;
 
     els.generateBtn.disabled = false;
-
-    // AI Context Auto Agent Detection
-    const recommendedAgent = PromptEngine.detectBestAgent(currentPageData);
-    if (recommendedAgent) {
-      activeAgent = recommendedAgent;
-      els.agentCards.forEach(c => {
-        if (c.dataset.agent === recommendedAgent) {
-          c.classList.add('active');
-        } else {
-          c.classList.remove('active');
-        }
-      });
-      els.autoAgentBadge.classList.remove('hidden');
-    }
   }
 
   async function generateContent() {
@@ -625,19 +601,27 @@ document.addEventListener('DOMContentLoaded', async () => {
 
       const config = {
         isChatBot: false,
-        agent: activeAgent,
+        agent: 'custom_prompt',
         customPromptText: selectedPrompt ? selectedPrompt.text : "Summarize this page."
       };
 
       const systemPrompt = PromptEngine.buildSystemPrompt(config);
       const userPrompt = PromptEngine.buildUserPrompt(currentPageData, config);
 
-      const response = await chrome.runtime.sendMessage({
-        action: 'generateContent',
-        data: { systemPrompt, userPrompt }
+      const response = await new Promise((resolve, reject) => {
+        chrome.runtime.sendMessage({
+          action: 'generateContent',
+          data: { systemPrompt, userPrompt }
+        }, (res) => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+          } else if (res && res.error) {
+            reject(new Error(res.error));
+          } else {
+            resolve(res);
+          }
+        });
       });
-
-      if (response.error) throw new Error(response.error);
       const content = response.content;
 
       generatedContent = content;
