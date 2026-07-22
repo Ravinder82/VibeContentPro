@@ -79,10 +79,9 @@ document.addEventListener('DOMContentLoaded', async () => {
       { id: 'gemini-1.5-flash',      name: 'Gemini 1.5 Flash' }
     ],
     openrouter: [
-      { id: 'meta-llama/llama-3.3-70b-instruct:free', name: '🆓 Llama 3.3 70B (Recommended)' },
+      { id: 'google/gemini-2.0-flash-lite-preview-02-05:free', name: '🆓 Gemini 2.0 Flash Lite (Recommended)' },
       { id: 'deepseek/deepseek-chat:free',            name: '🆓 DeepSeek V3 Chat' },
       { id: 'deepseek/deepseek-r1:free',              name: '🆓 DeepSeek R1 (Reasoning)' },
-      { id: 'google/gemini-2.0-flash-lite-preview-02-05:free', name: '🆓 Gemini 2.0 Flash Lite' },
       { id: 'mistralai/mistral-7b-instruct:free',     name: '🆓 Mistral 7B Instruct' },
       { id: 'anthropic/claude-3.5-sonnet',            name: '💰 Claude 3.5 Sonnet' },
       { id: 'openai/gpt-4o-mini',                     name: '💰 GPT-4o Mini' },

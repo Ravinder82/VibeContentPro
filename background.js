@@ -17,7 +17,7 @@ const DEFAULT_MODELS = {
   openai:     'gpt-4o-mini',
   anthropic:  'claude-3-5-haiku-latest',
   gemini:     'gemini-2.0-flash',
-  openrouter: 'meta-llama/llama-3.3-70b-instruct:free',
+  openrouter: 'google/gemini-2.0-flash-lite-preview-02-05:free',
   nvidia:     'meta/llama-3.3-70b-instruct'
 };
 
@@ -383,10 +383,10 @@ async function fetchOpenRouter({ url, apiKey, model, data, temperature }, isRetr
     const errMsg = extractErrorMessage(parsed, `OpenRouter API error (${response.status})`);
     
     // If rate-limited or upstream provider error on a :free model, retry once with fallback free model
-    if (!isRetry && (response.status === 429 || errMsg.includes('ResourceExhausted') || errMsg.includes('Provider returned error') || errMsg.includes('upstream error')) && model.includes(':free')) {
+    if (!isRetry && (response.status === 429 || response.status === 400 || errMsg.includes('ResourceExhausted') || errMsg.includes('Provider returned error') || errMsg.includes('upstream error') || errMsg.includes('unavailable for free')) && model.includes(':free')) {
       await new Promise(resolve => setTimeout(resolve, 1000));
-      const fallbackModel = model !== 'meta-llama/llama-3.3-70b-instruct:free'
-        ? 'meta-llama/llama-3.3-70b-instruct:free'
+      const fallbackModel = model !== 'google/gemini-2.0-flash-lite-preview-02-05:free'
+        ? 'google/gemini-2.0-flash-lite-preview-02-05:free'
         : 'deepseek/deepseek-chat:free';
       return fetchOpenRouter({ url, apiKey, model: fallbackModel, data, temperature }, true);
     }
@@ -574,7 +574,8 @@ async function getSettings() {
       }
     }
     // Migrate deprecated or rate-limited OpenRouter model to reliable default
-    if (merged.providersConfig?.openrouter?.model === 'google/gemini-2.0-flash-exp:free') {
+    if (merged.providersConfig?.openrouter?.model === 'google/gemini-2.0-flash-exp:free' ||
+        merged.providersConfig?.openrouter?.model === 'meta-llama/llama-3.3-70b-instruct:free') {
       merged.providersConfig.openrouter.model = defaults.providersConfig.openrouter.model;
     }
     return merged;
